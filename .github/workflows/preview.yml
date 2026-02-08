@@ -1,0 +1,68 @@
+name: Preview Deploy
+
+on:
+  push:
+    branches:
+      - feature/ui-improvements
+      - 'preview/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM Core
+        working-directory: core/crates/richiesafe-wasm
+        run: wasm-pack build --target web
+      
+      - name: Copy WASM to Web Src
+        run: |
+          mkdir -p web/src/pkg
+          cp -r core/crates/richiesafe-wasm/pkg/* web/src/pkg/
+
+      - name: Install Frontend Dependencies
+        working-directory: web
+        run: npm install
+
+      - name: Build Frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: web/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
