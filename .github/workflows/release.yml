@@ -1,0 +1,64 @@
+name: Release Desktop App
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest] # Add windows-latest, ubuntu-latest later
+
+    runs-on: ${{ matrix.platform }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM Core
+        working-directory: core/crates/richiesafe-wasm
+        run: wasm-pack build --target web
+      
+      - name: Copy WASM to Web Src
+        run: |
+          mkdir -p web/src/pkg
+          cp -r core/crates/richiesafe-wasm/pkg/* web/src/pkg/
+
+      - name: Install Frontend Dependencies
+        working-directory: web
+        run: npm install
+
+      - name: Build Frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__ # the action automatically replaces __VERSION__ with the app version
+          releaseName: "RichieSafe v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false

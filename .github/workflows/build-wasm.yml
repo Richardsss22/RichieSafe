@@ -1,0 +1,37 @@
+name: Build WASM Core
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'core/**'
+  workflow_dispatch:
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/crates/richiesafe-wasm
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: wasm32-unknown-unknown
+        override: true
+
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+    - name: Build WASM
+      run: wasm-pack build --target web
+
+    - name: Upload WASM Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: richiesafe-wasm-pkg
+        path: core/crates/richiesafe-wasm/pkg
