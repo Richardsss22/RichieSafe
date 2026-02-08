@@ -1,0 +1,68 @@
+
+pub fn change_pin(
+    handle: &mut VaultHandle,
+    new_pin: &str,
+    kdf_params: kdf::KdfParams,
+) -> Result<Vec<u8>, String> {
+    // 1. Identify existing recovery method to preserve
+    let recovery_method = handle.original_header.methods.iter()
+        .find(|m| m.method_id == UnlockMethodType::Recovery)
+        .ok_or("No recovery method found in original header")?
+        .clone();
+
+    // 2. Wrap existing vault_key with new PIN
+    // Generate new salt and nonce for wrapping
+    let salt = rng::generate_bytes(16);
+    let wrap_nonce = rng::generate_bytes(24);
+    
+    // Derived key from new PIN
+    let k_unlock = kdf::derive_key(new_pin.as_bytes(), &salt, kdf_params)?;
+    
+    // Wrap the *existing* vault_key
+    let wrapped_key_vec = crypto_aead::encrypt(
+        &k_unlock,
+        &wrap_nonce.clone().try_into().unwrap(), // Need try_into for array
+        &handle.vault_key, // using the raw 32-byte key
+        header::MAGIC
+    )?;
+
+    if wrapped_key_vec.len() != 48 {
+        return Err("Wrap error".into());
+    }
+
+    let mut methods = Vec::new();
+    methods.push(UnlockMethod {
+        method_id: UnlockMethodType::Pin,
+        kdf_params,
+        method_salt: salt.try_into().unwrap(),
+        wrap_nonce: wrap_nonce.try_into().unwrap(),
+        wrapped_key: wrapped_key_vec.try_into().unwrap(),
+    });
+    methods.push(recovery_method);
+
+    // 3. New Header using original vault type
+    let header = VaultHeader::new(handle.original_header.fixed.vault_type, methods);
+    
+    // UPDATE HANDLE HEADER
+    handle.original_header = header.clone();
+
+    // 4. Re-Encrypt Body (because Header/AAD changed)
+    // Serialize state
+    let state = &handle.state;
+    let body_bytes = serde_cbor::to_vec(state).map_err(|e| e.to_string())?;
+
+    // New body nonce
+    let body_nonce_vec = rng::generate_bytes(24);
+    let body_nonce: [u8;24] = body_nonce_vec.clone().try_into().unwrap();
+    
+    let header_bytes = header.to_bytes();
+    
+    let ciphertext = crypto_aead::encrypt(
+        &handle.vault_key,
+        &body_nonce,
+        &body_bytes,
+        &header_bytes // New AAD
+    )?;
+
+    Ok(format::assemble(&header, &body_nonce, &ciphertext))
+}

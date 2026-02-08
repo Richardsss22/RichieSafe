@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', sans-serif;
+  @apply bg-slate-50 text-slate-900;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700;
+  border-radius: 20px;
+}
+
+/* Safe Area for Mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Force Light BG override for specific inputs */
+input.force-light-bg {
+  background-color: #FAFAFA !important;
+  -webkit-box-shadow: 0 0 0 30px #FAFAFA inset !important;
+  color: #374151 !important;
+  /* Gray 700 */
+  -webkit-text-fill-color: #374151 !important;
+}
+
+.dark input.force-light-bg {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+  -webkit-box-shadow: 0 0 0 30px rgba(15, 23, 42, 0.5) inset !important;
+  box-shadow: none !important;
+}
+
+/* Animation Utilities (Manual implementation of basic tailwindcss-animate features used) */
+.animate-in {
+  animation-duration: 150ms;
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: enter-opacity;
+}
+
+.zoom-in {
+  animation-name: enter-scale;
+}
+
+.slide-in-from-right {
+  animation-name: enter-slide-right;
+}
+
+.slide-in-from-bottom {
+  animation-name: enter-slide-bottom;
+}
+
+@keyframes enter-opacity {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes enter-scale {
+  from {
+    transform: scale(0.95);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes enter-slide-right {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes enter-slide-bottom {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}

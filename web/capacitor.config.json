@@ -1,0 +1,15 @@
+{
+  "appId": "com.richiesafe.app",
+  "appName": "RichieSafe",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#ffffff",
+      "launchShowDuration": 2000,
+      "showSpinner": false,
+      "androidScaleType": "CENTER_INSIDE",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "richiesafe-b7e91"
+  },
+  "targets": {
+    "richiesafe-b7e91": {
+      "hosting": {
+        "app": [
+          "richiesafe"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

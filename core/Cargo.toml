@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/richiesafe-core",
+    "crates/richiesafe-ffi",
+    "crates/richiesafe-wasm"
+]
+resolver = "2"
