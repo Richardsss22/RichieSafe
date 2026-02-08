@@ -55,6 +55,11 @@ jobs:
         working-directory: web
         run: npm run build -- --base=/RichieSafe/
 
+      - name: Copy WASM to dist
+        run: |
+          cp core/crates/richiesafe-wasm/pkg/*.wasm web/dist/assets/
+          cp core/crates/richiesafe-wasm/pkg/*.js web/dist/assets/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
