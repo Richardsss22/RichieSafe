@@ -1,17 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-// We import dynamically or rely on vite-plugin-wasm to handle the import if available
-// For now, we assume the pkg is available via alias or standard import if installed
+// Import from the copied pkg folder (copied by CI workflow or npm script)
 import init, {
     unlock_vault,
     create_vault_pair,
     WasmVaultHandle,
     VaultPair
-} from '../../../core/crates/richiesafe-wasm/pkg/richiesafe_wasm.js';
+} from '../pkg/richiesafe_wasm.js';
 
-// NOTE: The path above imports directly from the core crate source for now. 
-// In a real production build, this should be an NPM package or copied to src.
-// Since we don't have the artifact locally, this import WILL FAIL locally until the user places the artifact.
-// We will wrap it in a try-catch for init.
+// NOTE: The WASM pkg should be in web/src/pkg/ - copied there during build.
 
 interface SecurityContextType {
     isReady: boolean;
