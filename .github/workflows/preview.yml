@@ -53,7 +53,7 @@ jobs:
 
       - name: Build Frontend
         working-directory: web
-        run: npm run build
+        run: npm run build -- --base=/RichieSafe/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
