@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 // We import dynamically or rely on vite-plugin-wasm to handle the import if available
 // For now, we assume the pkg is available via alias or standard import if installed
-import init, { 
-    unlock_vault, 
-    create_vault_pair, 
-    WasmVaultHandle, 
-    VaultPair 
-} from '../../../core/crates/richiesafe-wasm/pkg/richiesafe_wasm.js'; 
+import init, {
+    unlock_vault,
+    create_vault_pair,
+    WasmVaultHandle,
+    VaultPair
+} from '../../../core/crates/richiesafe-wasm/pkg/richiesafe_wasm.js';
 
 // NOTE: The path above imports directly from the core crate source for now. 
 // In a real production build, this should be an NPM package or copied to src.
@@ -19,7 +19,7 @@ interface SecurityContextType {
     vaultHandle: WasmVaultHandle | null;
     unlock: (blob: Uint8Array, secret: string) => Promise<void>;
     lock: () => void;
-    create: (pin: string, recovery: string) => Promise<VaultPair>;
+    create: (pin: string, recovery: string, panicPin: string) => Promise<VaultPair>;
     error: string | null;
 }
 
@@ -36,6 +36,36 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [vaultHandle, setVaultHandle] = useState<WasmVaultHandle | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Auto-Lock on Idle (5 minutes)
+    useEffect(() => {
+        if (!isAuthenticated || !vaultHandle) return;
+
+        let timer: ReturnType<typeof setTimeout>;
+        const LOCK_TIMEOUT = 5 * 60 * 1000; // 5m
+
+        const lockVault = () => {
+            console.log("Auto-locking due to inactivity...");
+            lock();
+        };
+
+        const resetTimer = () => {
+            clearTimeout(timer);
+            timer = setTimeout(lockVault, LOCK_TIMEOUT);
+        };
+
+        // Listeners for activity
+        const events = ['mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+        const onActivity = () => resetTimer();
+
+        events.forEach(e => window.addEventListener(e, onActivity));
+        resetTimer(); // Start immediately
+
+        return () => {
+            clearTimeout(timer);
+            events.forEach(e => window.removeEventListener(e, onActivity));
+        };
+    }, [isAuthenticated, vaultHandle]); // Re-bind if auth state changes
 
     useEffect(() => {
         init().then(() => {
@@ -72,10 +102,8 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(false);
     };
 
-    const create = async (pin: string, recovery: string): Promise<VaultPair> => {
+    const create = async (pin: string, recovery: string, panicPin: string): Promise<VaultPair> => {
         if (!isReady) throw new Error("Security module not ready");
-        // We just use a panic pin for decoy for now - in real UX we'd ask for it
-        const panicPin = "0000"; 
         return create_vault_pair(pin, panicPin, recovery);
     };
 

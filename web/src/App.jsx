@@ -273,30 +273,20 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
 
     try {
       // Use Security Context to create vault pair
-      // NOTE: Context.create(pin, recovery) currently doesn't accept panicPin in implemented version?
-      // Wait, I implemented `create(pin, recovery)` in SecurityContext calling `create_vault_pair(pin, "0000", recovery)`
-      // I should update SecurityContext to accept panicPin or just pass it here if I update the context.
-      // For now let's assume I updated context OR I can just use WASM direct for creation *then* unlock context.
-
-      // Actually, relying on Context for state management is key.
-      // But `create_vault_pair` is a static helper.
-      // I will use `create` from context and UPDATE Context to support panic pin in a later step if needed.
-      // For this step, I'll stick to what context exposes: `create(pin, recovery)`.
-      // The user won't get panic pin feature properly unless I fix context.
-      // BUT, I can just do:
-      const pair = await create(pin, recovery); // Context handles WASM call
-      // Wait, context implementation used "0000" for panic.
-      // I should fix that in context in "next step" or here.
-      // Let's assume context returns { real, decoy }.
+      // Now supporting panicPin and decoy persist
+      const pair = await create(pin, recovery, panicPin);
 
       // Persist Real Blob
       await storage.set("richiesafe_vault_blob", JSON.stringify(Array.from(pair.real)));
+
+      // Persist Decoy Blob
+      await storage.set("richiesafe_vault_decoy", JSON.stringify(Array.from(pair.decoy)));
 
       // SYNC: Bump meta + Push
       bumpLocalMeta();
       await pushLocal("richiesafe_vault_blob");
 
-      // Auto unlock via context
+      // Auto unlock via context (Unlock REAL vault by default on creation)
       await unlock(pair.real, pin);
 
       clearSensitiveInputs();
@@ -319,11 +309,32 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       const realBlob = new Uint8Array(JSON.parse(realBlobJson));
 
       // 1. Context Verify/Unlock
-      await unlock(realBlob, pin);
+      try {
+        await unlock(realBlob, pin); // Try Real Vault
+      } catch (realErr) {
+        // Failed real unlock. Try Decoy?
+        const decoyBlobJson = await storage.get("richiesafe_vault_decoy");
+        if (decoyBlobJson) {
+          try {
+            const decoyBlob = new Uint8Array(JSON.parse(decoyBlobJson));
+            await unlock(decoyBlob, pin); // Try Decoy Vault (pin input variable holds the entered pin)
+            // If successful, we are now authenticated with the DECOY handle.
+            console.warn("PANIC MODE ACTIVATED");
+            return; // Exit success
+          } catch (decoyErr) {
+            // Both failed
+            throw realErr; // Throw original error
+          }
+        } else {
+          throw realErr;
+        }
+      }
 
       // 2. Strict Biometric Check (if enabled)
-      // Check secure storage (intent) first to see if it SHOULD be enabled.
-      // This prevents the "Cancel -> Soft Unlock" bypass.
+      // Only enforce for REAL vault? Or both? 
+      // If we are here, we unlocked the REAL vault. Decoy implies panic, so maybe skip biometrics for decoy?
+      // Logic above returns early on decoy success, so we only reach here for Real Vault.
+
       const shouldBeEnabled = localStorage.getItem("richiesafe_bio_enabled") === "true";
 
       if (shouldBeEnabled) {
