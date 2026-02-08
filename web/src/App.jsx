@@ -129,6 +129,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMsg, setAuthMsg] = useState("");
   const [authErr, setAuthErr] = useState("");
+  const [showCloudSync, setShowCloudSync] = useState(false); // Collapsible Cloud Sync section
 
   const doEmailAuth = async () => {
     setAuthErr("");
@@ -453,129 +454,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           {hasVault ? "Bem-vindo de volta. Insira o seu PIN." : "Crie o seu novo cofre encriptado."}
         </p>
 
-        {/* ---- Sessão (opcional) ---- */}
-        <div className={`rounded-[2rem] border p-5 transition-colors mb-6 ${isDarkMode ? "bg-slate-900/20 border-slate-800" : "bg-white border-slate-200"
-          }`}>
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? "text-slate-500" : "text-slate-400"
-                }`}>
-                Sessão (opcional)
-              </p>
-              <p className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"
-                }`}>
-                {user ? "Ligado" : "Sem sessão"}
-              </p>
-              <p className={`text-xs mt-1 ${isDarkMode ? "text-slate-500" : "text-slate-500"
-                }`}>
-                A sincronização só funciona quando tiveres sessão iniciada.
-              </p>
-            </div>
-
-            {user ? (
-              <button
-                onClick={async () => {
-                  try { await logoutFirebase(); } catch { }
-                }}
-                className="px-4 py-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 font-bold text-xs transition-colors"
-              >
-                Terminar
-              </button>
-            ) : (
-              <button
-                onClick={continueOffline}
-                className={`px-4 py-2 rounded-xl font-bold text-xs transition-colors ${isDarkMode
-                  ? "bg-slate-900 hover:bg-slate-800 text-slate-400"
-                  : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm"
-                  }`}
-              >
-                Offline
-              </button>
-            )}
-          </div>
-
-          {!user && (
-            <>
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={() => setAuthMode("login")}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "login"
-                    ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
-                    : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
-                    }`}
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => setAuthMode("register")}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "register"
-                    ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
-                    : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
-                    }`}
-                >
-                  Registo
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                    ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                    : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                    }`}
-                  placeholder="Email"
-                  type="email"
-                  autoComplete="email"
-                />
-                <input
-                  value={authPass}
-                  onChange={(e) => setAuthPass(e.target.value)}
-                  className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                    ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                    : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                    }`}
-                  placeholder="Password"
-                  type="password"
-                  autoComplete={authMode === "login" ? "current-password" : "new-password"}
-                />
-
-                {(authErr || authMsg) && (
-                  <div className={`p-3 rounded-2xl text-xs font-bold text-center ${authErr
-                    ? "bg-red-500/10 border border-red-500/20 text-red-500"
-                    : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
-                    }`}>
-                    {authErr || authMsg}
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={doEmailAuth}
-                    disabled={authLoading}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {authLoading ? "A validar..." : (authMode === "login" ? "Entrar" : "Criar Conta")}
-                  </button>
-
-                  <button
-                    onClick={doGoogle}
-                    disabled={authLoading}
-                    className={`flex-1 font-bold py-3 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50 ${isDarkMode
-                      ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
-                      : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
-                      }`}
-                    title="Login com Google"
-                  >
-                    Google
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
+        {/* ---- PIN SECTION (PRIMARY) ---- */}
         <div className="space-y-5">
           {hasVault && isRecovering ? (
             <div className="space-y-2 animate-in fade-in zoom-in duration-300">
@@ -621,7 +500,6 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                   type="password"
                   value={panicPin}
                   onChange={(e) => setPanicPin(e.target.value)}
-                  // Use Tailwind classes for color to fix transition bug
                   className="w-full bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold transition-all text-red-600 tracking-widest"
                   placeholder="••••••"
                   autoComplete="new-password"
@@ -634,8 +512,6 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                     FRASE DE RECUPERAÇÃO
                   </label>
-
-                  {/* UI stays the same vibe; small action link */}
                   <button
                     type="button"
                     onClick={handleGenerateRecovery}
@@ -694,7 +570,6 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                 onClick={() => {
                   setIsRecovering(!isRecovering);
                   setError("");
-                  // clear opposite input
                   setPin("");
                   setRecoveryKey("");
                 }}
@@ -702,18 +577,163 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
               >
                 {isRecovering ? "Voltar ao PIN" : "Esqueceste-te da password?"}
               </button>
-
-              <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
-                <button
-                  onClick={handleReset}
-                  className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest transition-colors"
-                >
-                  Destruir Cofre (Reset)
-                </button>
-              </div>
             </>
           )}
         </div>
+
+        {/* ---- CLOUD SYNC (OPTIONAL - COLLAPSIBLE) ---- */}
+        <div className={`mt-8 pt-6 border-t ${isDarkMode ? "border-slate-800" : "border-slate-100"}`}>
+          <button
+            onClick={() => setShowCloudSync(!showCloudSync)}
+            className={`w-full flex items-center justify-between py-3 px-4 rounded-2xl transition-colors ${isDarkMode
+              ? "bg-slate-900/30 hover:bg-slate-900/50 text-slate-400"
+              : "bg-slate-50 hover:bg-slate-100 text-slate-500"
+              }`}
+          >
+            <span className="text-xs font-bold uppercase tracking-widest">
+              ☁️ Cloud Sync (Opcional)
+            </span>
+            <span className={`text-lg transition-transform ${showCloudSync ? "rotate-180" : ""}`}>
+              ▾
+            </span>
+          </button>
+
+          {showCloudSync && (
+            <div className={`mt-4 rounded-[2rem] border p-5 transition-colors ${isDarkMode ? "bg-slate-900/20 border-slate-800" : "bg-white border-slate-200"
+              }`}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? "text-slate-500" : "text-slate-400"
+                    }`}>
+                    Sessão Firebase
+                  </p>
+                  <p className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"
+                    }`}>
+                    {user ? "Ligado" : "Sem sessão"}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? "text-slate-500" : "text-slate-500"
+                    }`}>
+                    A sincronização só funciona quando tiveres sessão iniciada.
+                  </p>
+                </div>
+
+                {user ? (
+                  <button
+                    onClick={async () => {
+                      try { await logoutFirebase(); } catch { }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 font-bold text-xs transition-colors"
+                  >
+                    Terminar
+                  </button>
+                ) : (
+                  <button
+                    onClick={continueOffline}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-colors ${isDarkMode
+                      ? "bg-slate-900 hover:bg-slate-800 text-slate-400"
+                      : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm"
+                      }`}
+                  >
+                    Offline
+                  </button>
+                )}
+              </div>
+
+              {!user && (
+                <>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setAuthMode("login")}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "login"
+                        ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
+                        : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
+                        }`}
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => setAuthMode("register")}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "register"
+                        ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
+                        : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
+                        }`}
+                    >
+                      Registo
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                        : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                        }`}
+                      placeholder="Email"
+                      type="email"
+                      autoComplete="email"
+                    />
+                    <input
+                      value={authPass}
+                      onChange={(e) => setAuthPass(e.target.value)}
+                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                        : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                        }`}
+                      placeholder="Password"
+                      type="password"
+                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                    />
+
+                    {(authErr || authMsg) && (
+                      <div className={`p-3 rounded-2xl text-xs font-bold text-center ${authErr
+                        ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                        : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+                        }`}>
+                        {authErr || authMsg}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={doEmailAuth}
+                        disabled={authLoading}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                      >
+                        {authLoading ? "A validar..." : (authMode === "login" ? "Entrar" : "Criar Conta")}
+                      </button>
+
+                      <button
+                        onClick={doGoogle}
+                        disabled={authLoading}
+                        className={`flex-1 font-bold py-3 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50 ${isDarkMode
+                          ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                          : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+                          }`}
+                        title="Login com Google"
+                      >
+                        Google
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ---- RESET VAULT (only when vault exists) ---- */}
+        {hasVault && (
+          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              onClick={handleReset}
+              className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest transition-colors"
+            >
+              Destruir Cofre (Reset)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
