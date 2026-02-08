@@ -52,6 +52,10 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Disable Tauri beforeBuildCommand
+        run: |
+          sed -i.bak 's/"beforeBuildCommand": ".*"/"beforeBuildCommand": ""/' src-tauri/tauri.conf.json
+
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
