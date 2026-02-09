@@ -21,6 +21,7 @@ console.log("DEBUG: Config keys loaded:", {
     hasKey: !!firebaseConfig.apiKey,
     keyLen: firebaseConfig.apiKey?.length,
     hasDomain: !!firebaseConfig.authDomain,
+    projectId: firebaseConfig.projectId,
     mode: import.meta.env.MODE
 });
 
