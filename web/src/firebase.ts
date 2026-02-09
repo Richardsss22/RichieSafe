@@ -12,12 +12,12 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "richiesafe-f1d07.firebaseapp.com",
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "richiesafe-f1d07.web.app",
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "richiesafe-f1d07",
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "richiesafe-f1d07.firebasestorage.app",
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
-console.log("DEBUG: Config keys loaded:", {
+console.log("DEBUG: Config keys loaded (v1.1-webapp):", {
     hasKey: !!firebaseConfig.apiKey,
     keyLen: firebaseConfig.apiKey?.length,
     domain: firebaseConfig.authDomain,

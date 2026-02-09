@@ -582,6 +582,10 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           }`}
       >
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+        {/* Version Marker for Debugging */}
+        <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50">
+          v1.2 (Hardcoded+Nuke)
+        </div>
 
         {/* DEBUG: Firebase Status Banner */}
         {!auth && (
