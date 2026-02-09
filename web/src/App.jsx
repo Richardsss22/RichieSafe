@@ -257,6 +257,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   };
 
   const handleCreate = async () => {
+    // Force Redeploy: Fix Sync Crash
     if (!pin || !panicPin || !recovery) {
       setError("Preencha todos os campos.");
       return;
