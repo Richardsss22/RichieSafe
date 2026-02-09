@@ -12,18 +12,11 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "richiesafe-f1d07.web.app", // Switch to web.app to bypass cache
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "richiesafe-f1d07.web.app",
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "richiesafe-f1d07",
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "richiesafe-f1d07.firebasestorage.app",
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
-console.log("DEBUG: Config keys loaded (v1.7-webapp):", {
-    hasKey: !!firebaseConfig.apiKey,
-    keyLen: firebaseConfig.apiKey?.length,
-    domain: firebaseConfig.authDomain,
-    project: firebaseConfig.projectId,
-    mode: import.meta.env.MODE
-});
 
 let app;
 let auth;
@@ -36,7 +29,7 @@ if (firebaseConfig.apiKey) {
         auth = getAuth(app);
 
         // Explicitly enable persistence to fix redirect loops
-        setPersistence(auth, browserLocalPersistence).catch(e => {
+        setPersistence(auth, browserLocalPersistence).catch((e: unknown) => {
             console.error("Auth persistence failed:", e);
         });
 
