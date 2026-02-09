@@ -944,7 +944,7 @@ const SettingsPanel = ({ isDarkMode, onLogout, onChangePin }) => {
 };
 
 /* ------------------------------ Main App ------------------------------ */
-const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
+const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
   // Use Context
   const { vaultHandle, lock } = useSecurity();
 
@@ -969,21 +969,11 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
   const [editingId, setEditingId] = useState(null); // Track ID if editing
   const [newItem, setNewItem] = useState({ title: "", user: "", pass: "", type: "password", notes: "" });
 
-  // Sync Status State
-  const [syncStatus, setSyncStatus] = useState(navigator.onLine ? "online" : "offline");
+  // Sync Status State - depends on Firebase user AND internet
   const [lastSync, setLastSync] = useState(null);
 
-  // Sync Status Effect
-  useEffect(() => {
-    const handleOnline = () => setSyncStatus("online");
-    const handleOffline = () => setSyncStatus("offline");
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  // Derive syncStatus from user and network
+  const syncStatus = !user ? "offline" : (navigator.onLine ? "online" : "offline");
 
   const revealTimerRef = useRef(null);
   const clipboardTimerRef = useRef(null);
@@ -1283,7 +1273,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <SyncStatusIndicator status={syncStatus} lastSync={lastSync} isDarkMode={isDarkMode} />
+            <SyncStatusIndicator status={syncStatus} lastSync={lastSync} isDarkMode={isDarkMode} onConnect={onConnect} />
 
             <button
               onClick={doLogout}
@@ -1753,7 +1743,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
 };
 
 /* --- Sync Status Indicator --- */
-const SyncStatusIndicator = ({ status, lastSync, isDarkMode }) => {
+const SyncStatusIndicator = ({ status, lastSync, isDarkMode, onConnect }) => {
   // status: 'online' | 'syncing' | 'offline'
 
   if (status === 'syncing') {
@@ -1775,16 +1765,18 @@ const SyncStatusIndicator = ({ status, lastSync, isDarkMode }) => {
 
   if (status === 'offline') {
     return (
-      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-red-50 border-red-200 text-red-600"
-        }`}>
+      <button
+        onClick={onConnect}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all hover:scale-105 cursor-pointer ${isDarkMode ? "bg-slate-800 border-slate-700 text-slate-400 hover:border-indigo-500 hover:text-indigo-400" : "bg-slate-100 border-slate-200 text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
+          }`}
+      >
         <div className="relative w-4 h-4 flex items-center justify-center">
-          <div className="absolute w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
           </svg>
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-wider">Offline</span>
-      </div>
+        <span className="text-[10px] font-bold uppercase tracking-wider">Conectar</span>
+      </button>
     );
   }
 
@@ -1994,6 +1986,8 @@ const App = () => {
       isDarkMode={isDarkMode}
       setIsDarkMode={setIsDarkMode}
       onLogout={handleLogout}
+      user={user}
+      onConnect={() => window.location.reload()}
     />
   );
 };
