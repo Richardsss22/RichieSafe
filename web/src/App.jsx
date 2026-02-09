@@ -1133,14 +1133,16 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
         }
       }
 
-      await persistExport();
+      // Update UI immediately (Optimistic)
       refreshItems();
 
-      // SECURITY: clear secret inputs immediately
       setIsCreating(false);
       setEditingId(null);
       setNewItem({ title: "", user: "", pass: "", type: "password", notes: "" });
       writeClipboardSafe("");
+
+      // Persist in background (but await to catch errors if needed, though UI is already closed)
+      await persistExport();
     } catch (e) {
       alert("Erro ao guardar: " + e);
       console.error(e);
