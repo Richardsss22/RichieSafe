@@ -155,22 +155,6 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         if (result?.user) {
           console.log("Google redirect login successful:", result.user.email);
           setAuthMsg("Sessão iniciada com Google.");
-          // Trigger sync for the logged-in user
-          setAuthLoading(true);
-          try {
-            const syncResult = await initialSync(STORAGE_KEY);
-            if (syncResult.mode !== "empty" && syncResult.mode !== "offline") {
-              setHasVault(true);
-              if (syncResult.mode === "offline_fallback") {
-                setAuthMsg("Modo Offline: Usando cópia local.");
-              }
-            }
-          } catch (syncErr) {
-            console.warn("Sync after Google login failed:", syncErr);
-            setAuthErr(getErrorMessage(syncErr));
-          } finally {
-            setAuthLoading(false);
-          }
         }
       } catch (e) {
         console.error("Google redirect error:", e);
@@ -179,6 +163,38 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
     };
     processGoogleRedirect();
   }, []);
+
+  // Auto-sync when user prop changes (e.g., after redirect or already authenticated)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkVault = async () => {
+      console.log("User detected, checking for vault...");
+      setAuthLoading(true);
+      setAuthMsg("A verificar cofre...");
+      try {
+        const syncResult = await initialSync(STORAGE_KEY);
+        console.log("Sync result:", syncResult);
+        if (syncResult.mode !== "empty" && syncResult.mode !== "offline") {
+          setHasVault(true);
+          if (syncResult.mode === "offline_fallback") {
+            setAuthMsg("Modo Offline: Usando cópia local.");
+          } else {
+            setAuthMsg("Cofre encontrado. Introduz o PIN.");
+          }
+        } else {
+          setAuthMsg("Nenhum cofre encontrado nesta conta.");
+        }
+      } catch (e) {
+        console.warn("Vault check failed:", e);
+        setAuthErr(getErrorMessage(e));
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkVault();
+  }, [user]);
 
   const doEmailAuth = async () => {
     setAuthErr("");
