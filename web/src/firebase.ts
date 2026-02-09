@@ -35,22 +35,15 @@ if (firebaseConfig.apiKey) {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
 
-        // Use default Firestore settings (Memory cache by default, less error prone)
-        // We can try to enable persistence later if connectivity works
-        db = getFirestore(app);
-        /*
-                // Safari/Firefox Private Mode compatibility
-                try {
-                    db = initializeFirestore(app, {
-                        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-                    });
-                } catch (e) {
-                    console.warn("Firestore persistence failed, falling back to memory", e);
-                    db = initializeFirestore(app, {
-                        localCache: memoryLocalCache()
-                    });
-                }
-        */
+        // Force memory cache to avoid "Target ID already exists" errors likely due to corrupt IndexedDB
+        try {
+            db = initializeFirestore(app, {
+                localCache: memoryLocalCache()
+            });
+        } catch (e) {
+            console.warn("Firestore fallback failed, trying default", e);
+            db = getFirestore(app);
+        }
 
         storage = getStorage(app);
     } catch (e) {
