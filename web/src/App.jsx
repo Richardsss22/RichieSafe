@@ -178,6 +178,29 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [showCloudSync, setShowCloudSync] = useState(false); // Collapsible Cloud Sync section
   const [canRetryPopup, setCanRetryPopup] = useState(false); // New state for popup retry
 
+  // HOSTING DIAGNOSTICS
+  const [firebaseStatus, setFirebaseStatus] = useState("checking"); // checking | ok | error_404 | error_network
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const domain = "richiesafe-f1d07.firebaseapp.com";
+        // Check init.json (should always exist if hosting is active)
+        const res = await fetch(`https://${domain}/__/firebase/init.json`);
+        if (res.ok) {
+          setFirebaseStatus("ok");
+        } else {
+          console.error("Hosting check failed:", res.status);
+          setFirebaseStatus("error_404");
+        }
+      } catch (e) {
+        console.error("Hosting check failed", e);
+        setFirebaseStatus("error_network");
+      }
+    };
+    if (!auth.currentUser) checkStatus();
+  }, []);
+
   // Handle Google redirect result on page load
   useEffect(() => {
     const processGoogleRedirect = async () => {
@@ -594,7 +617,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v1.4 (Firebase 12.6.0)</span>
+          <span>v1.5 (Diagnosing Hosting)</span>
           <button
             onClick={() => {
               if (confirm("Reset total da app?")) nukeFirebaseData();
@@ -605,8 +628,17 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           </button>
         </div>
 
+        {/* CRITICAL DIAGNOSTIC BANNER */}
+        {firebaseStatus.startsWith("error") && (
+          <div className="absolute top-10 left-0 w-full bg-red-600 text-white p-2 z-[9999] text-[10px] font-bold text-center animate-pulse shadow-xl">
+            🚨 ERRO CRÍTICO: Firebase Hosting Offline ({firebaseStatus})<br />
+            O site `richiesafe-f1d07.firebaseapp.com` não responde.<br />
+            Vai à Consola Firebase &gt; Hosting &gt; Verifica se o site existe!
+          </div>
+        )}
+
         {/* DEBUG: Firebase Status Banner */}
-        {!auth && (
+        {!auth && !firebaseStatus.startsWith("error") && (
           <div className="absolute top-2 left-0 w-full text-center text-xs font-bold text-yellow-500 bg-yellow-500/10 py-1">
             ⚠️ Firebase desligado (Config em falta)
           </div>
