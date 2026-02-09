@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import * as ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { SecurityProvider } from './context/SecurityContext'
@@ -17,11 +17,11 @@ try {
   if (!root) console.error("DEBUG: Root element not found!");
   else console.log("DEBUG: Root element found:", root);
 
-  if (!ReactDOM.createRoot) {
-    throw new Error("ReactDOM.createRoot is undefined! Exports: " + JSON.stringify(ReactDOM));
+  if (!createRoot) {
+    throw new Error("createRoot is undefined!");
   }
 
-  ReactDOM.createRoot(root).render(
+  createRoot(root).render(
     <StrictMode>
       <div style={{ color: 'blue', fontSize: '2rem', padding: '2rem' }}>
         <h1>Debug: Hello World (v3)</h1>
