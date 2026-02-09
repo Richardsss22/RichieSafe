@@ -10,6 +10,12 @@ const firebaseConfig = {
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
+console.log("DEBUG: Config keys loaded:", {
+    hasKey: !!firebaseConfig.apiKey,
+    keyLen: firebaseConfig.apiKey?.length,
+    hasDomain: !!firebaseConfig.authDomain,
+    mode: import.meta.env.MODE
+});
 
 let app;
 let auth;
