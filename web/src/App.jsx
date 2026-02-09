@@ -145,27 +145,22 @@ function isProbablyMnemonic(s) {
 /* ------------------------------ Auth Screen ------------------------------ */
 
 async function nukeFirebaseData() {
-  console.warn("Attempting to nuke corrupt Firebase data...");
   try {
     if (window.indexedDB && window.indexedDB.databases) {
       const dbs = await window.indexedDB.databases();
       for (const db of dbs) {
         if (db.name && (db.name.includes("firebase") || db.name.includes("firestore"))) {
-          console.log("Deleting DB:", db.name);
           window.indexedDB.deleteDatabase(db.name);
         }
       }
     }
-    // Also try to clear localStorage specific keys
-    for (let i = 0; i < localStorage.length; i++) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
       if (key && key.includes("firebase")) {
         localStorage.removeItem(key);
       }
     }
-    // Set a flag to avoid nuke loops if possible, or just trust reload fixes it
     sessionStorage.setItem("richiesafe_nuked", "true");
-    window.location.reload();
   } catch (e) {
     console.warn("Nuke failed:", e);
   }
@@ -600,10 +595,13 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v2.1</span>
+          <span>v2.2</span>
           <button
-            onClick={() => {
-              if (confirm("Reset total da app?")) nukeFirebaseData();
+            onClick={async () => {
+              if (confirm("Reset total da app?")) {
+                await nukeFirebaseData();
+                window.location.reload();
+              }
             }}
             className="underline hover:text-red-500 cursor-pointer pointer-events-auto"
           >
