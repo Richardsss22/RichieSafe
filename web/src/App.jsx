@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-import init, { generate_mnemonic } from "./pkg/richiesafe_wasm";
+import { generate_mnemonic } from "./pkg/richiesafe_wasm";
 // import wasmUrl from "./pkg/richiesafe_wasm_bg.wasm?url"; 
 import { storage } from "./utils/storage";
 import { App as CapApp } from "@capacitor/app";
