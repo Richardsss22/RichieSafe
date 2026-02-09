@@ -1,4 +1,11 @@
+import { StrictMode } from 'react'
+import * as ReactDOM from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+import { SecurityProvider } from './context/SecurityContext'
+
 console.log("DEBUG: main.jsx loading...");
+console.log("DEBUG: ReactDOM exports:", ReactDOM);
 
 window.onerror = function (msg, url, line, col, error) {
   console.error("DEBUG: Global Error:", msg, error);
@@ -10,11 +17,15 @@ try {
   if (!root) console.error("DEBUG: Root element not found!");
   else console.log("DEBUG: Root element found:", root);
 
-  createRoot(root).render(
+  if (!ReactDOM.createRoot) {
+    throw new Error("ReactDOM.createRoot is undefined! Exports: " + JSON.stringify(ReactDOM));
+  }
+
+  ReactDOM.createRoot(root).render(
     <StrictMode>
       <div style={{ color: 'blue', fontSize: '2rem', padding: '2rem' }}>
-        <h1>Debug: Hello World (v2)</h1>
-        <p>React is mounting.</p>
+        <h1>Debug: Hello World (v3)</h1>
+        <p>React is mounting via ReactDOM namespace.</p>
       </div>
     </StrictMode>,
   );
