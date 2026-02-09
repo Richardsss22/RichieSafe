@@ -66,6 +66,7 @@ async function uploadRemote(uid: string, blob: Uint8Array) {
 
 // Exposed wrapper for App.jsx to call when saving
 export async function pushLocal(storageKey: string) {
+    if (!auth) return;
     const u = auth.currentUser;
     if (!u) return;
     const blob = getLocalBlob(storageKey);
@@ -81,6 +82,7 @@ export async function pushLocal(storageKey: string) {
 }
 
 export async function initialSync(storageKey: string) {
+    if (!auth) return { mode: "offline" as const };
     const u = auth.currentUser;
     if (!u) return { mode: "offline" as const };
 
@@ -120,6 +122,7 @@ export async function initialSync(storageKey: string) {
 }
 
 export function listenRemoteChanges(storageKey: string, onRemoteBlob: (blob: Uint8Array) => void) {
+    if (!auth) return () => { };
     const u = auth.currentUser;
     if (!u) return () => { };
 
