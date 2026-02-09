@@ -34,6 +34,8 @@ import { initialSync, listenRemoteChanges, pushLocal, bumpLocalMeta } from "./sy
 import { useSecurity } from "./context/SecurityContext";
 
 
+const STORAGE_KEY = "richiesafe_vault_blob";
+
 /* ------------------------------ Helpers ------------------------------ */
 function getErrorMessage(error) {
   const msg = String(error?.message || error);
