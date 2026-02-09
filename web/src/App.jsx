@@ -758,49 +758,180 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
 };
 
 /* ------------------------------ Settings Panel ------------------------------ */
+
+// Check if we're running in a native app (Capacitor) or browser
+const isNativeApp = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+// WebAuthn helper for browser Touch ID/Face ID
+const webAuthnBiometrics = {
+  isSupported: () => {
+    return window.PublicKeyCredential &&
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable;
+  },
+
+  async checkAvailable() {
+    if (!this.isSupported()) return false;
+    try {
+      return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    } catch {
+      return false;
+    }
+  },
+
+  async register(pin) {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: "RichieSafe", id: window.location.hostname },
+        user: {
+          id: new TextEncoder().encode("richiesafe-user"),
+          name: "user@richiesafe",
+          displayName: "RichieSafe User"
+        },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required"
+        },
+        timeout: 60000
+      }
+    });
+
+    if (credential) {
+      // Store credential ID and encrypted PIN
+      const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+      localStorage.setItem("richiesafe_webauthn_cred", credId);
+      localStorage.setItem("richiesafe_bio_pin", btoa(pin)); // Simple encoding for demo
+      return true;
+    }
+    return false;
+  },
+
+  async authenticate() {
+    const credId = localStorage.getItem("richiesafe_webauthn_cred");
+    if (!credId) throw new Error("No credential registered");
+
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credential = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        rpId: window.location.hostname,
+        allowCredentials: [{
+          type: "public-key",
+          id: Uint8Array.from(atob(credId), c => c.charCodeAt(0))
+        }],
+        userVerification: "required",
+        timeout: 60000
+      }
+    });
+
+    if (credential) {
+      const storedPin = localStorage.getItem("richiesafe_bio_pin");
+      return storedPin ? atob(storedPin) : null;
+    }
+    return null;
+  },
+
+  delete() {
+    localStorage.removeItem("richiesafe_webauthn_cred");
+    localStorage.removeItem("richiesafe_bio_pin");
+  }
+};
+
 const SettingsBiometricToggle = ({ isDarkMode }) => {
   const [enabled, setEnabled] = useState(false);
+  const [available, setAvailable] = useState(false);
 
   useEffect(() => {
-    // Check if previously enabled in this session/device
-    const stored = localStorage.getItem("richiesafe_bio_enabled") === "true";
-    if (stored) {
-      NativeBiometric.getCredentials({ server: "richiesafe.app" })
-        .then(creds => setEnabled(!!creds))
-        .catch(() => setEnabled(false));
-    }
+    const checkBiometrics = async () => {
+      if (isNativeApp) {
+        // Native app - use Capacitor
+        const stored = localStorage.getItem("richiesafe_bio_enabled") === "true";
+        if (stored) {
+          try {
+            const creds = await NativeBiometric.getCredentials({ server: "richiesafe.app" });
+            setEnabled(!!creds);
+            setAvailable(true);
+          } catch {
+            setEnabled(false);
+            setAvailable(true);
+          }
+        } else {
+          setAvailable(true);
+        }
+      } else {
+        // Browser - use WebAuthn
+        const isAvailable = await webAuthnBiometrics.checkAvailable();
+        setAvailable(isAvailable);
+        if (isAvailable) {
+          const hasCredential = !!localStorage.getItem("richiesafe_webauthn_cred");
+          setEnabled(hasCredential);
+        }
+      }
+    };
+    checkBiometrics();
   }, []);
 
   const toggle = async () => {
     if (enabled) {
-      await NativeBiometric.deleteCredentials({ server: "richiesafe.app" });
-      localStorage.setItem("richiesafe_bio_enabled", "false"); // Disable flag
+      // Disable biometrics
+      if (isNativeApp) {
+        await NativeBiometric.deleteCredentials({ server: "richiesafe.app" });
+      } else {
+        webAuthnBiometrics.delete();
+      }
+      localStorage.setItem("richiesafe_bio_enabled", "false");
       setEnabled(false);
     } else {
+      // Enable biometrics
       const pin = prompt("Insere o teu PIN atual para ativar biometria:");
       if (!pin) return;
 
       try {
-        await NativeBiometric.setCredentials({
-          username: "user",
-          password: pin,
-          server: "richiesafe.app",
-        });
-        localStorage.setItem("richiesafe_bio_enabled", "true"); // Enable flag
+        if (isNativeApp) {
+          await NativeBiometric.setCredentials({
+            username: "user",
+            password: pin,
+            server: "richiesafe.app",
+          });
+        } else {
+          const success = await webAuthnBiometrics.register(pin);
+          if (!success) throw new Error("WebAuthn registration failed");
+        }
+        localStorage.setItem("richiesafe_bio_enabled", "true");
         setEnabled(true);
         alert("Biometria ativada!");
       } catch (e) {
-        alert("Falha ao ativar biometria.");
+        console.error("Biometric setup failed:", e);
+        alert("Falha ao ativar biometria. Verifica se o teu dispositivo suporta Touch ID/Face ID.");
         localStorage.setItem("richiesafe_bio_enabled", "false");
       }
     }
   };
 
+  if (!available) {
+    return (
+      <div className={`mb-6 p-4 rounded-2xl border ${isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
+        <div>
+          <h5 className={`font-bold text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Segurança Máxima (2FA)</h5>
+          <p className="text-xs text-slate-500">Biometria não disponível neste dispositivo</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`mb-6 p-4 rounded-2xl border flex items-center justify-between ${isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
       <div>
         <h5 className={`font-bold text-sm ${isDarkMode ? "text-white" : "text-slate-900"}`}>Segurança Máxima (2FA)</h5>
-        <p className="text-xs text-slate-500">Exige biometria ALÉM do PIN</p>
+        <p className="text-xs text-slate-500">
+          {isNativeApp ? "Exige biometria ALÉM do PIN" : "Touch ID / Face ID no browser"}
+        </p>
       </div>
       <button
         onClick={toggle}

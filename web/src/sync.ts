@@ -64,6 +64,16 @@ async function uploadRemote(uid: string, blob: Uint8Array) {
     }, { merge: true });
 }
 
+// Timeout helper
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+        ),
+    ]);
+}
+
 // Exposed wrapper for App.jsx to call when saving
 export async function pushLocal(storageKey: string) {
     if (!auth) return;
@@ -73,11 +83,10 @@ export async function pushLocal(storageKey: string) {
     if (!blob) return;
 
     try {
-        // Ensure meta matches (should be bumped by caller, but we double check or just upload)
-        // Actually the robust way is: user changed local -> bump local -> push
-        await uploadRemote(u.uid, blob);
+        // 5 second timeout for sync
+        await withTimeout(uploadRemote(u.uid, blob), 5000);
     } catch (e) {
-        console.warn("Sync push failed", e);
+        console.warn("Sync push failed or timed out", e);
     }
 }
 
