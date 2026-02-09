@@ -5,7 +5,6 @@ import {
     signOut,
     User,
     GoogleAuthProvider,
-    signInWithRedirect,
     signInWithPopup,
     getRedirectResult,
 } from "firebase/auth";
@@ -29,48 +28,28 @@ export async function registerEmail(email: string, password: string) {
     return createUserWithEmailAndPassword(auth, email, password);
 }
 
-// Popup login (Fallback for Safari Private / Firefox Strict)
-export async function loginGooglePopup() {
+// Google Login via Popup (works on any hosting including GitHub Pages)
+export async function loginGoogle() {
     if (!auth) throw new Error("Cloud sync disabled");
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
     return signInWithPopup(auth, provider);
 }
 
-// Redirect login (Default - better for mobile/App)
-export async function loginGoogle() {
-    if (!auth) throw new Error("Cloud sync disabled");
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
+// Alias for backward compatibility
+export const loginGooglePopup = loginGoogle;
 
-    // Set flag to detect redirect failure (e.g. Safari Private Mode)
-    try {
-        window.sessionStorage.setItem("richiesafe_redirect_pending", "true");
-    } catch (e) { /* ignore */ }
-
-    return signInWithRedirect(auth, provider);
-}
-
-// Call this on app load to handle redirect result
+// Check for any pending redirect result on page load (silent, no false errors)
 export async function handleGoogleRedirect() {
     if (!auth) return null;
     try {
-        // Check if we were expecting a redirect
-        const pending = window.sessionStorage.getItem("richiesafe_redirect_pending");
-        if (pending) {
-            window.sessionStorage.removeItem("richiesafe_redirect_pending");
-        }
-
         const result = await getRedirectResult(auth);
-
-        // If pending was true BUT result is null, it failed silently (Safari Private?)
-        if (pending && !result) {
-            console.warn("Redirect detected but no result found. Possible Private Mode issue.");
-            return { error: "redirect_failed_silent" };
-        }
-
         return result;
-    } catch (e) {
+    } catch (e: unknown) {
+        // Suppress "missing initial state" errors (expected on GitHub Pages)
+        if (e instanceof Error && e.message?.includes("missing initial state")) {
+            return null;
+        }
         console.error("Google redirect result error:", e);
         throw e;
     }
@@ -80,4 +59,3 @@ export async function logoutFirebase() {
     if (!auth) return;
     return signOut(auth);
 }
-

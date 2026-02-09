@@ -1,5 +1,5 @@
 import { auth, db, storage } from "./firebase";
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot, enableNetwork } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getBytes } from "firebase/storage";
 
 function toU8(json: string) {
@@ -38,7 +38,6 @@ export function bumpLocalMeta() {
 
 // --- REMOTE (Storage) ---
 async function downloadRemote(uid: string): Promise<{ blob: Uint8Array; updatedAt: number } | null> {
-    try { await enableNetwork(db); } catch (e) { console.warn("Network enable failed", e); }
     const metaRef = doc(db, "vaults", uid);
     const snap = await getDoc(metaRef);
     if (!snap.exists()) return null;

@@ -210,29 +210,20 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [canRetryPopup, setCanRetryPopup] = useState(false); // New state for popup retry
 
 
-  // Handle Google redirect result on page load
+  // Handle any pending Google redirect result on page load (silent)
   useEffect(() => {
     const processGoogleRedirect = async () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("error")) {
         setAuthErr(`Erro no URL: ${params.get("error")} - ${params.get("error_description")}`);
       }
-
       try {
         const result = await handleGoogleRedirect();
-        if (result?.error === "redirect_failed_silent") {
-          setAuthErr("Login por redirecionamento falhou. O teu browser pode estar a bloquear cookies (Modo Privado?). Tenta a opção 'Popup'.");
-          setCanRetryPopup(true);
-          return;
-        }
-
         if (result?.user) {
-          console.log("Google redirect login successful:", result.user.email);
           setAuthMsg("Sessão iniciada com Google.");
         }
       } catch (e) {
-        console.error("Google redirect error:", e);
-        setAuthErr(getErrorMessage(e));
+        // Silent — popup is now primary, redirect errors are noise
       }
     };
     processGoogleRedirect();
@@ -267,16 +258,14 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         const errMsg = getErrorMessage(e);
         setAuthErr(errMsg);
 
-        // Check for specific "Target ID" error which means DB corruption
+        // "Target ID" error = Firestore corruption. Fall back to offline mode.
         if (errMsg.includes("Target ID") || String(e).includes("Target ID")) {
-          // FIX: Check for loop to avoid infinite reloads
-          if (sessionStorage.getItem("richiesafe_nuked")) {
-            console.error("Nuke loop detected. Aborting self-healing.");
-            setAuthErr("Erro crítico de persistência. Limpa os dados do browser manualmente.");
-            setAuthMsg("");
-          } else {
-            setAuthMsg("A reparar base de dados corrompida...");
-            nukeFirebaseData();
+          setAuthErr("");
+          setAuthMsg("Sem acesso à nuvem. A usar modo offline.");
+          // Check if local vault exists
+          const localBlob = localStorage.getItem(STORAGE_KEY);
+          if (localBlob) {
+            setHasVault(true);
           }
         }
       } finally {
@@ -322,27 +311,10 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
     setAuthErr("");
     setAuthMsg("");
     setAuthLoading(true);
-    setCanRetryPopup(false); // Reset
     try {
-      await loginGoogle();
-      setAuthMsg("A redirecionar para a Google...");
-    } catch (e) {
-      console.error(e);
-      setAuthErr(getErrorMessage(e));
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const doGooglePopup = async () => {
-    setAuthErr("");
-    setAuthMsg("");
-    setAuthLoading(true);
-    try {
-      const result = await loginGooglePopup();
-      if (result.user) {
-        setAuthMsg("Login via Popup com sucesso!");
-        // checking vault is handled by the user effect
+      const result = await loginGoogle();
+      if (result?.user) {
+        setAuthMsg("Sessão iniciada com Google.");
       }
     } catch (e) {
       console.error(e);
@@ -631,7 +603,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v2.3</span>
+          <span>v2.4</span>
           <button
             onClick={() => {
               setConfirmModal({
@@ -827,7 +799,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                     {/* Popup Retry Button */}
                     {canRetryPopup && (
                       <button
-                        onClick={doGooglePopup}
+                        onClick={doGoogle}
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                       >
                         <Search size={20} />
