@@ -64,21 +64,24 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     }, [isAuthenticated, vaultHandle]); // Re-bind if auth state changes
 
     useEffect(() => {
-        // Dynamically determine WASM path based on current location
-        // This works on both local dev, Capacitor, and GitHub Pages
+        // Determine WASM path based on deployment environment
         const getWasmPath = () => {
-            const base = import.meta.url;
-            // Navigate up from the bundled JS location to assets folder
-            const url = new URL('richiesafe_wasm_bg.wasm', base);
-            console.log('WASM URL:', url.href);
-            return url.href;
+            // On GitHub Pages, use absolute path
+            if (window.location.hostname.includes('github.io')) {
+                return '/RichieSafe/assets/richiesafe_wasm_bg.wasm';
+            }
+            // For local dev / Capacitor, use relative path
+            return 'richiesafe_wasm_bg.wasm';
         };
 
-        init(getWasmPath()).then(() => {
+        const wasmPath = getWasmPath();
+        console.log('Loading WASM from:', wasmPath);
+
+        init(wasmPath).then(() => {
             setIsReady(true);
-            console.log("WASM Initialized");
+            console.log("WASM Initialized successfully");
         }).catch(e => {
-            console.error("Failed to init WASM", e);
+            console.error("Failed to init WASM:", e);
             setError("Security module failed to load. Please check connection or artifacts.");
         });
     }, []);
