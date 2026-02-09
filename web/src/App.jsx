@@ -617,7 +617,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v1.5 (Diagnosing Hosting)</span>
+          <span>v1.6 (Warning Only)</span>
           <button
             onClick={() => {
               if (confirm("Reset total da app?")) nukeFirebaseData();
@@ -628,12 +628,11 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           </button>
         </div>
 
-        {/* CRITICAL DIAGNOSTIC BANNER */}
+        {/* HOSTING DIAGNOSTIC BANNER (WARNING ONLY) */}
         {firebaseStatus.startsWith("error") && (
-          <div className="absolute top-10 left-0 w-full bg-red-600 text-white p-2 z-[9999] text-[10px] font-bold text-center animate-pulse shadow-xl">
-            🚨 ERRO CRÍTICO: Firebase Hosting Offline ({firebaseStatus})<br />
-            O site `richiesafe-f1d07.firebaseapp.com` não responde.<br />
-            Vai à Consola Firebase &gt; Hosting &gt; Verifica se o site existe!
+          <div className="absolute top-10 left-0 w-full bg-yellow-400 text-black p-2 z-[9999] text-[10px] font-bold text-center shadow-xl">
+            ⚠️ Hosting em configuração ({firebaseStatus}).<br />
+            Se o login falhar, aguarda 5-10 min. (Handler OK)
           </div>
         )}
 
