@@ -697,7 +697,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
-                            setAuthErr("Erro ao entrar. Tenta novamente.");
+                            setAuthErr(`Erro Op: ${e.message || e}`);
                             setAuthMsg("");
                           } finally {
                             setAuthLoading(false);
@@ -727,7 +727,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
-                            setAuthErr("Erro ao entrar com Google.");
+                            setAuthErr(`Erro Op: ${e.message || e}`);
                             setAuthMsg("");
                           } finally {
                             setAuthLoading(false);
