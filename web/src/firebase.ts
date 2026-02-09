@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
+    memoryLocalCache
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -26,7 +31,21 @@ if (firebaseConfig.apiKey) {
     try {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
-        db = getFirestore(app);
+
+        // Safari/Firefox Private Mode compatibility
+        try {
+            db = initializeFirestore(app, {
+                experimentalForceLongPolling: true,
+                localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+            });
+        } catch (e) {
+            console.warn("Firestore persistence failed, falling back to memory", e);
+            db = initializeFirestore(app, {
+                experimentalForceLongPolling: true,
+                localCache: memoryLocalCache()
+            });
+        }
+
         storage = getStorage(app);
     } catch (e) {
         console.error("Firebase init failed:", e);

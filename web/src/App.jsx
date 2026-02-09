@@ -706,7 +706,12 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                               const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
                               if (res.mode !== "empty" && res.mode !== "offline") {
                                 setHasVault(true);
-                                setAuthMsg("");
+                                if (res.mode === "offline_fallback") {
+                                  setAuthErr(""); // Clear any previous error
+                                  setAuthMsg("Modo Offline: Usando cópia local.");
+                                } else {
+                                  setAuthMsg("");
+                                }
                               } else {
                                 setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
                               }
@@ -736,7 +741,12 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                               const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
                               if (res.mode !== "empty" && res.mode !== "offline") {
                                 setHasVault(true);
-                                setAuthMsg("");
+                                if (res.mode === "offline_fallback") {
+                                  setAuthErr("");
+                                  setAuthMsg("Modo Offline: Usando cópia local.");
+                                } else {
+                                  setAuthMsg("");
+                                }
                               } else {
                                 setAuthMsg("Nenhum cofre encontrado.");
                               }

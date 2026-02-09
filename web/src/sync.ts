@@ -107,8 +107,20 @@ export async function initialSync(storageKey: string, onStatus?: SyncStatusCallb
     const localUpdated = localMeta.updatedAt || 0;
 
     onStatus?.("A verificar nuvem...");
+    onStatus?.("A verificar nuvem...");
     console.time("downloadRemote");
-    const remote = await downloadRemote(uid);
+
+    let remote = null;
+    try {
+        remote = await downloadRemote(uid);
+    } catch (e) {
+        console.warn("Sync failed, checking local fallback", e);
+        if (localBlob) {
+            return { mode: "offline_fallback" as const };
+        }
+        throw e; // No local data + Sync failed = Error
+    }
+
     console.timeEnd("downloadRemote");
 
     // 1) Só local
