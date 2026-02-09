@@ -616,218 +616,262 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         {/* 2. NO VAULT -> WELCOME / CREATE / LOGIN FLOW */}
         {!hasVault && (
           <div className="space-y-6">
-            {/* View Switching Logic */}
-            {authMode === "welcome" && (
-              <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <button
-                  onClick={() => setAuthMode("create")}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-                >
-                  <Plus size={20} />
-                  Criar Novo Cofre
-                </button>
-                <button
-                  onClick={() => setAuthMode("login")}
-                  className={`w-full font-bold py-5 rounded-2xl border transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isDarkMode
-                    ? "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
-                    : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
-                    }`}
-                >
-                  <Search size={20} />
-                  Já Tenho Conta
-                </button>
-              </div>
-            )}
 
-            {authMode === "create" && (
-              <div className="animate-in fade-in slide-in-from-right-8 duration-300">
-                <div className="flex items-center gap-2 mb-6">
-                  <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                    <ChevronRight className="rotate-180" size={20} />
-                  </button>
-                  <h2 className="text-lg font-bold">Configurar Cofre</h2>
+            {/* LOGGED IN BUT NO VAULT (or checking) */}
+            {user ? (
+              <div className="text-center space-y-4 animate-in fade-in zoom-in duration-300">
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 font-bold uppercase tracking-widest mb-1">CONECTADO COMO</p>
+                  <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{user.email}</p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
-                    <input
-                      type="password"
-                      value={pin}
-                      onChange={(e) => setPin(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest"
-                      placeholder="••••••"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
-                    <input
-                      type="password"
-                      value={panicPin}
-                      onChange={(e) => setPanicPin(e.target.value)}
-                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold text-red-600 tracking-widest"
-                      placeholder="••••••"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
-                      <button onClick={handleGenerateRecovery} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
+                <div className="py-4">
+                  {authLoading ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-sm font-medium text-slate-500">{authMsg || "A procurar cofre..."}</p>
                     </div>
-                    <textarea
-                      value={recovery}
-                      onChange={(e) => setRecovery(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
-                      placeholder="Gera ou cola a tua frase..."
-                    />
-                    <p className="text-[10px] text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
-                  </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {authMsg || "Nenhum cofre encontrado nesta conta."}
+                      </p>
 
-                  {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
+                      {/* If no vault found, offer to create one */}
+                      <button
+                        onClick={() => setAuthMode("create")}
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98]"
+                      >
+                        Criar Novo Cofre
+                      </button>
 
-                  <button
-                    onClick={handleCreate}
-                    disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] mt-4"
-                  >
-                    {loading ? "A Criar Cofre..." : "Finalizar Configuração"}
-                  </button>
+                      <button
+                        onClick={logoutFirebase}
+                        className="text-sm font-bold text-red-500 hover:text-red-600 py-2"
+                      >
+                        Terminar Sessão
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-
-            {authMode === "login" && (
-              <div className="animate-in fade-in slide-in-from-right-8 duration-300">
-                <div className="flex items-center gap-2 mb-6">
-                  <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                    <ChevronRight className="rotate-180 text-slate-900 dark:text-white" size={20} />
-                  </button>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Entrar na Conta</h2>
-                </div>
-
-                <div className="space-y-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 bg-slate-100 dark:bg-slate-900 p-3 rounded-xl border border-transparent dark:border-slate-800">
-                    Faz login para sincronizar o teu cofre existente. Vais precisar do teu <b>PIN Mestre</b> para o desbloquear depois.
-                  </p>
-
-                  <div className="space-y-3">
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                        : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+            ) : (
+              /* NOT LOGGED IN */
+              <>
+                {/* View Switching Logic */}
+                {authMode === "welcome" && (
+                  <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <button
+                      onClick={() => setAuthMode("create")}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                    >
+                      <Plus size={20} />
+                      Criar Novo Cofre
+                    </button>
+                    <button
+                      onClick={() => setAuthMode("login")}
+                      className={`w-full font-bold py-5 rounded-2xl border transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isDarkMode
+                        ? "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
+                        : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
                         }`}
-                      placeholder="Email"
-                      type="email"
-                      autoComplete="email"
-                    />
-                    <input
-                      value={authPass}
-                      onChange={(e) => setAuthPass(e.target.value)}
-                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                        : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                        }`}
-                      placeholder="Password"
-                      type="password"
-                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
-                    />
+                    >
+                      <Search size={20} />
+                      Já Tenho Conta
+                    </button>
+                  </div>
+                )}
 
-                    {(authErr || authMsg) && (
-                      <div className={`p-3 rounded-xl text-xs font-bold text-center ${authErr
-                        ? "bg-red-500/10 border border-red-500/20 text-red-500"
-                        : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
-                        }`}>
-                        {authErr || authMsg}
+                {authMode === "create" && (
+                  <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                    <div className="flex items-center gap-2 mb-6">
+                      <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <ChevronRight className="rotate-180" size={20} />
+                      </button>
+                      <h2 className="text-lg font-bold">Configurar Cofre</h2>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
+                        <input
+                          type="password"
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest"
+                          placeholder="••••••"
+                        />
                       </div>
-                    )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={async () => {
-                          setAuthErr("");
-                          try {
-                            await doEmailAuth();
-                            // doEmailAuth sets authErr on failure
-                            // CHECK authErr state directly might be stale due to closure, check auth.currentUser instead?
-                            // doEmailAuth is async and sets state. We should rely on try/catch inside doEmailAuth re-throwing?
-                            // Actually doEmailAuth catches its own errors. We need to check if we have a user.
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
+                        <input
+                          type="password"
+                          value={panicPin}
+                          onChange={(e) => setPanicPin(e.target.value)}
+                          className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold text-red-600 tracking-widest"
+                          placeholder="••••••"
+                        />
+                      </div>
 
-                            if (auth.currentUser) {
-                              setAuthLoading(true);
-                              setAuthMsg("A procurar cofre...");
-                              const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
-                              if (res.mode !== "empty" && res.mode !== "offline") {
-                                setHasVault(true);
-                                if (res.mode === "offline_fallback") {
-                                  setAuthErr(""); // Clear any previous error
-                                  setAuthMsg("Modo Offline: Usando cópia local.");
-                                } else {
-                                  setAuthMsg("");
-                                }
-                              } else {
-                                setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
-                              }
-                            }
-                          } catch (e) {
-                            console.error(e);
-                            setAuthErr(getErrorMessage(e));
-                            setAuthMsg("");
-                          } finally {
-                            setAuthLoading(false);
-                          }
-                        }}
-                        disabled={authLoading}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50"
-                      >
-                        {authLoading ? "..." : "Entrar"}
-                      </button>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
+                          <button onClick={handleGenerateRecovery} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
+                        </div>
+                        <textarea
+                          value={recovery}
+                          onChange={(e) => setRecovery(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
+                          placeholder="Gera ou cola a tua frase..."
+                        />
+                        <p className="text-[10px] text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
+                      </div>
+
+                      {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
 
                       <button
-                        onClick={async () => {
-                          setAuthErr("");
-                          try {
-                            await doGoogle();
-                            if (auth.currentUser) {
-                              setAuthLoading(true);
-                              setAuthMsg("A procurar cofre...");
-                              const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
-                              if (res.mode !== "empty" && res.mode !== "offline") {
-                                setHasVault(true);
-                                if (res.mode === "offline_fallback") {
-                                  setAuthErr("");
-                                  setAuthMsg("Modo Offline: Usando cópia local.");
-                                } else {
-                                  setAuthMsg("");
-                                }
-                              } else {
-                                setAuthMsg("Nenhum cofre encontrado.");
-                              }
-                            }
-                          } catch (e) {
-                            console.error(e);
-                            setAuthErr(getErrorMessage(e));
-                            setAuthMsg("");
-                          } finally {
-                            setAuthLoading(false);
-                          }
-                        }}
-                        disabled={authLoading}
-                        className={`font-bold py-3 rounded-2xl border active:scale-[0.98] disabled:opacity-50 ${isDarkMode
-                          ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
-                          : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
-                          }`}
-                        title="Login com Google"
+                        onClick={handleCreate}
+                        disabled={loading}
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] mt-4"
                       >
-                        Google
+                        {loading ? "A Criar Cofre..." : "Finalizar Configuração"}
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
+                )}
+
+                {authMode === "login" && (
+                  <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                    <div className="flex items-center gap-2 mb-6">
+                      <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <ChevronRight className="rotate-180 text-slate-900 dark:text-white" size={20} />
+                      </button>
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-white">Entrar na Conta</h2>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 bg-slate-100 dark:bg-slate-900 p-3 rounded-xl border border-transparent dark:border-slate-800">
+                        Faz login para sincronizar o teu cofre existente. Vais precisar do teu <b>PIN Mestre</b> para o desbloquear depois.
+                      </p>
+
+                      <div className="space-y-3">
+                        <input
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                            ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                            : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                            }`}
+                          placeholder="Email"
+                          type="email"
+                          autoComplete="email"
+                        />
+                        <input
+                          value={authPass}
+                          onChange={(e) => setAuthPass(e.target.value)}
+                          className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                            ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                            : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                            }`}
+                          placeholder="Password"
+                          type="password"
+                          autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                        />
+
+                        {(authErr || authMsg) && (
+                          <div className={`p-3 rounded-xl text-xs font-bold text-center ${authErr
+                            ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                            : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+                            }`}>
+                            {authErr || authMsg}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={async () => {
+                              setAuthErr("");
+                              try {
+                                await doEmailAuth();
+                                // doEmailAuth sets authErr on failure
+                                // CHECK authErr state directly might be stale due to closure, check auth.currentUser instead?
+                                // doEmailAuth is async and sets state. We should rely on try/catch inside doEmailAuth re-throwing?
+                                // Actually doEmailAuth catches its own errors. We need to check if we have a user.
+
+                                if (auth.currentUser) {
+                                  setAuthLoading(true);
+                                  setAuthMsg("A procurar cofre...");
+                                  const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
+                                  if (res.mode !== "empty" && res.mode !== "offline") {
+                                    setHasVault(true);
+                                    if (res.mode === "offline_fallback") {
+                                      setAuthErr(""); // Clear any previous error
+                                      setAuthMsg("Modo Offline: Usando cópia local.");
+                                    } else {
+                                      setAuthMsg("");
+                                    }
+                                  } else {
+                                    setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
+                                  }
+                                }
+                              } catch (e) {
+                                console.error(e);
+                                setAuthErr(getErrorMessage(e));
+                                setAuthMsg("");
+                              } finally {
+                                setAuthLoading(false);
+                              }
+                            }}
+                            disabled={authLoading}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50"
+                          >
+                            {authLoading ? "..." : "Entrar"}
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              setAuthErr("");
+                              try {
+                                await doGoogle();
+                                if (auth.currentUser) {
+                                  setAuthLoading(true);
+                                  setAuthMsg("A procurar cofre...");
+                                  const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
+                                  if (res.mode !== "empty" && res.mode !== "offline") {
+                                    setHasVault(true);
+                                    if (res.mode === "offline_fallback") {
+                                      setAuthErr("");
+                                      setAuthMsg("Modo Offline: Usando cópia local.");
+                                    } else {
+                                      setAuthMsg("");
+                                    }
+                                  } else {
+                                    setAuthMsg("Nenhum cofre encontrado.");
+                                  }
+                                }
+                              } catch (e) {
+                                console.error(e);
+                                setAuthErr(getErrorMessage(e));
+                                setAuthMsg("");
+                              } finally {
+                                setAuthLoading(false);
+                              }
+                            }}
+                            disabled={authLoading}
+                            className={`font-bold py-3 rounded-2xl border active:scale-[0.98] disabled:opacity-50 ${isDarkMode
+                              ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                              : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+                              }`}
+                            title="Login com Google"
+                          >
+                            Google
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -844,7 +888,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
