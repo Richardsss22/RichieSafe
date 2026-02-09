@@ -233,6 +233,14 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   useEffect(() => {
     if (!user) return;
 
+    // In "create" mode, user just logged in to associate their account.
+    // Don't run full sync — there's no vault yet. Just confirm auth.
+    if (authMode === "create") {
+      setAuthMsg("");
+      setAuthErr("");
+      return;
+    }
+
     const checkVault = async () => {
       setAuthLoading(true);
       setAuthMsg("A verificar cofre...");
@@ -603,7 +611,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v2.4</span>
+          <span>v2.6</span>
           <button
             onClick={() => {
               setConfirmModal({
