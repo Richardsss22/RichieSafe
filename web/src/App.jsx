@@ -35,6 +35,22 @@ import { useSecurity } from "./context/SecurityContext";
 
 
 /* ------------------------------ Helpers ------------------------------ */
+function getErrorMessage(error) {
+  const msg = String(error?.message || error);
+  if (msg.includes("client is offline") || msg.includes("network-request-failed"))
+    return "Sem ligação à internet. Verifica a tua rede.";
+
+  if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request"))
+    return "Janela de login fechada.";
+
+  if (msg.includes("wrong-password")) return "Password incorreta.";
+  if (msg.includes("user-not-found")) return "Conta não encontrada.";
+  if (msg.includes("email-already-in-use")) return "Email já registado.";
+  if (msg.includes("weak-password")) return "Password fraca.";
+  if (msg.includes("too-many-requests")) return "Muitas tentativas. Aguarda um pouco.";
+
+  return msg.replace("Firebase: ", "").replace("Error (auth/", "").replace(").", "");
+}
 async function writeClipboardSafe(text) {
   // Prefer modern async Clipboard API
   if (navigator?.clipboard?.writeText) {
@@ -156,7 +172,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       setAuthPass("");
     } catch (e) {
       console.error(e);
-      setAuthErr(`Erro: ${e.message}`);
+      setAuthErr(getErrorMessage(e));
     } finally {
       setAuthLoading(false);
     }
@@ -171,7 +187,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       setAuthMsg("Sessão iniciada com Google.");
     } catch (e) {
       console.error(e);
-      setAuthErr(`Erro Google: ${e.message}`);
+      setAuthErr(getErrorMessage(e));
     } finally {
       setAuthLoading(false);
     }
@@ -697,7 +713,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
-                            setAuthErr(`Erro Op: ${e.message || e}`);
+                            setAuthErr(getErrorMessage(e));
                             setAuthMsg("");
                           } finally {
                             setAuthLoading(false);
@@ -727,7 +743,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
-                            setAuthErr(`Erro Op: ${e.message || e}`);
+                            setAuthErr(getErrorMessage(e));
                             setAuthMsg("");
                           } finally {
                             setAuthLoading(false);
