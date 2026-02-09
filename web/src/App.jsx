@@ -123,7 +123,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [hasVault, setHasVault] = useState(false);
 
   // ---- Sessão (Firebase Auth) - opcional ----
-  const [authMode, setAuthMode] = useState("login"); // "login" | "register"
+  const [authMode, setAuthMode] = useState("welcome"); // "welcome" | "create" | "login" | "register"
   const [email, setEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -472,274 +472,245 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           {hasVault ? "Bem-vindo de volta. Insira o seu PIN." : "Crie o seu novo cofre encriptado."}
         </p>
 
-        {/* ---- PIN SECTION (PRIMARY) ---- */}
-        <div className="space-y-5">
-          {hasVault && isRecovering ? (
-            <div className="space-y-2 animate-in fade-in zoom-in duration-300">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                CHAVE DE RECUPERAÇÃO
-              </label>
-              <textarea
-                value={recoveryKey}
-                onChange={(e) => setRecoveryKey(e.target.value)}
-                className="w-full bg-[#fafafa] dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white transition-all shadow-sm min-h-[120px]"
-                placeholder="Introduza a sua frase de recuperação..."
-                spellCheck={false}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-              />
-            </div>
-          ) : (
-            <div className="space-y-2 animate-in fade-in zoom-in duration-300">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                PIN MESTRE
-              </label>
-              <input
-                type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                style={{ backgroundColor: isDarkMode ? "" : "#FAFAFA", color: isDarkMode ? "white" : "black" }}
-                className="w-full border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm tracking-widest font-bold"
-                placeholder="••••••"
-                autoComplete="current-password"
-                inputMode="numeric"
-              />
-            </div>
-          )}
+        {/* ---- CONDITIONAL UI BASED ON STATE ---- */}
 
-          {!hasVault && (
-            <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-red-500">
-                  PIN DE PÂNICO
+        {/* 1. HAS VAULT -> UNLOCK SCREEN */}
+        {hasVault && (
+          <div className="space-y-5">
+            {isRecovering ? (
+              <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  CHAVE DE RECUPERAÇÃO
                 </label>
-                <input
-                  type="password"
-                  value={panicPin}
-                  onChange={(e) => setPanicPin(e.target.value)}
-                  className="w-full bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold transition-all text-red-600 tracking-widest"
-                  placeholder="••••••"
-                  autoComplete="new-password"
-                  inputMode="numeric"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    FRASE DE RECUPERAÇÃO
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateRecovery}
-                    className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 uppercase tracking-widest"
-                  >
-                    Gerar
-                  </button>
-                </div>
-
                 <textarea
-                  value={recovery}
-                  onChange={(e) => setRecovery(e.target.value)}
-                  className="w-full border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 dark:bg-slate-900/50 dark:text-white min-h-[100px] placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  style={{ backgroundColor: isDarkMode ? "" : "#FAFAFA", color: isDarkMode ? "white" : "black" }}
-                  placeholder="Clique em GERAR ou escreva a sua..."
+                  value={recoveryKey}
+                  onChange={(e) => setRecoveryKey(e.target.value)}
+                  className="w-full bg-[#fafafa] dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white transition-all shadow-sm min-h-[120px]"
+                  placeholder="Introduza a sua frase de recuperação..."
                   spellCheck={false}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                 />
-
-                <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">
-                  Guarda esta frase offline. Não a deixes no clipboard.
-                </div>
               </div>
-            </>
-          )}
+            ) : (
+              <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  PIN MESTRE
+                </label>
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  style={{ backgroundColor: isDarkMode ? "" : "#FAFAFA", color: isDarkMode ? "white" : "black" }}
+                  className="w-full border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm tracking-widest font-bold"
+                  placeholder="••••••"
+                  autoComplete="current-password"
+                  inputMode="numeric"
+                />
+              </div>
+            )}
 
-          {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-xs font-bold text-center animate-pulse">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-xs font-bold text-center animate-pulse">
+                {error}
+              </div>
+            )}
 
-          {!hasVault && (
             <button
-              onClick={handleCreate}
+              onClick={isRecovering ? handleRecover : handleUnlock}
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
             >
-              {loading ? "A criar..." : "Criar Cofre"}
+              {loading ? "A verificar..." : isRecovering ? "Recuperar Cofre" : "Desbloquear"}
             </button>
-          )}
 
-          {hasVault && (
-            <>
-              <button
-                onClick={isRecovering ? handleRecover : handleUnlock}
-                disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
-              >
-                {loading ? "A verificar..." : isRecovering ? "Recuperar Cofre" : "Desbloquear"}
-              </button>
+            <button
+              onClick={() => {
+                setIsRecovering(!isRecovering);
+                setError("");
+                setPin("");
+                setRecoveryKey("");
+              }}
+              className="w-full text-center text-sm font-medium text-slate-400 hover:text-indigo-500 transition-colors mt-4"
+            >
+              {isRecovering ? "Voltar ao PIN" : "Esqueceste-te da password?"}
+            </button>
+          </div>
+        )}
 
-              <button
-                onClick={() => {
-                  setIsRecovering(!isRecovering);
-                  setError("");
-                  setPin("");
-                  setRecoveryKey("");
-                }}
-                className="w-full text-center text-sm font-medium text-slate-400 hover:text-indigo-500 transition-colors mt-4"
-              >
-                {isRecovering ? "Voltar ao PIN" : "Esqueceste-te da password?"}
-              </button>
-            </>
-          )}
-        </div>
+        {/* 2. NO VAULT -> WELCOME / CREATE / LOGIN FLOW */}
+        {!hasVault && (
+          <div className="space-y-6">
+            {/* View Switching Logic */}
+            {authMode === "welcome" && (
+              <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <button
+                  onClick={() => setAuthMode("create")}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  <Plus size={20} />
+                  Criar Novo Cofre
+                </button>
+                <button
+                  onClick={() => setAuthMode("login")}
+                  className={`w-full font-bold py-5 rounded-2xl border transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isDarkMode
+                    ? "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
+                    : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
+                    }`}
+                >
+                  <Search size={20} />
+                  Já Tenho Conta
+                </button>
+              </div>
+            )}
 
-        {/* ---- CLOUD SYNC (OPTIONAL - COLLAPSIBLE) ---- */}
-        <div className={`mt-8 pt-6 border-t ${isDarkMode ? "border-slate-800" : "border-slate-100"}`}>
-          <button
-            onClick={() => setShowCloudSync(!showCloudSync)}
-            className={`w-full flex items-center justify-between py-3 px-4 rounded-2xl transition-colors ${isDarkMode
-              ? "bg-slate-900/30 hover:bg-slate-900/50 text-slate-400"
-              : "bg-slate-50 hover:bg-slate-100 text-slate-500"
-              }`}
-          >
-            <span className="text-xs font-bold uppercase tracking-widest">
-              ☁️ Cloud Sync (Opcional)
-            </span>
-            <span className={`text-lg transition-transform ${showCloudSync ? "rotate-180" : ""}`}>
-              ▾
-            </span>
-          </button>
-
-          {showCloudSync && (
-            <div className={`mt-4 rounded-[2rem] border p-5 transition-colors ${isDarkMode ? "bg-slate-900/20 border-slate-800" : "bg-white border-slate-200"
-              }`}>
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? "text-slate-500" : "text-slate-400"
-                    }`}>
-                    Sessão Firebase
-                  </p>
-                  <p className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"
-                    }`}>
-                    {user ? "Ligado" : "Sem sessão"}
-                  </p>
-                  <p className={`text-xs mt-1 ${isDarkMode ? "text-slate-500" : "text-slate-500"
-                    }`}>
-                    A sincronização só funciona quando tiveres sessão iniciada.
-                  </p>
+            {authMode === "create" && (
+              <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                <div className="flex items-center gap-2 mb-6">
+                  <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <ChevronRight className="rotate-180" size={20} />
+                  </button>
+                  <h2 className="text-lg font-bold">Configurar Cofre</h2>
                 </div>
 
-                {user ? (
-                  <button
-                    onClick={async () => {
-                      try { await logoutFirebase(); } catch { }
-                    }}
-                    className="px-4 py-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 font-bold text-xs transition-colors"
-                  >
-                    Terminar
-                  </button>
-                ) : (
-                  <button
-                    onClick={continueOffline}
-                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-colors ${isDarkMode
-                      ? "bg-slate-900 hover:bg-slate-800 text-slate-400"
-                      : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm"
-                      }`}
-                  >
-                    Offline
-                  </button>
-                )}
-              </div>
-
-              {!user && (
-                <>
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      onClick={() => setAuthMode("login")}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "login"
-                        ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
-                        : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
-                        }`}
-                    >
-                      Login
-                    </button>
-                    <button
-                      onClick={() => setAuthMode("register")}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "register"
-                        ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
-                        : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
-                        }`}
-                    >
-                      Registo
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
                     <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                        : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                        }`}
-                      placeholder="Email"
-                      type="email"
-                      autoComplete="email"
-                    />
-                    <input
-                      value={authPass}
-                      onChange={(e) => setAuthPass(e.target.value)}
-                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                        : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                        }`}
-                      placeholder="Password"
                       type="password"
-                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest"
+                      placeholder="••••••"
                     />
-
-                    {(authErr || authMsg) && (
-                      <div className={`p-3 rounded-2xl text-xs font-bold text-center ${authErr
-                        ? "bg-red-500/10 border border-red-500/20 text-red-500"
-                        : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
-                        }`}>
-                        {authErr || authMsg}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={doEmailAuth}
-                        disabled={authLoading}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
-                      >
-                        {authLoading ? "A validar..." : (authMode === "login" ? "Entrar" : "Criar Conta")}
-                      </button>
-
-                      <button
-                        onClick={doGoogle}
-                        disabled={authLoading}
-                        className={`flex-1 font-bold py-3 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50 ${isDarkMode
-                          ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
-                          : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
-                          }`}
-                        title="Login com Google"
-                      >
-                        Google
-                      </button>
-                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
+                    <input
+                      type="password"
+                      value={panicPin}
+                      onChange={(e) => setPanicPin(e.target.value)}
+                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold text-red-600 tracking-widest"
+                      placeholder="••••••"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
+                      <button onClick={handleGenerateRecovery} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
+                    </div>
+                    <textarea
+                      value={recovery}
+                      onChange={(e) => setRecovery(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
+                      placeholder="Gera ou cola a tua frase..."
+                    />
+                    <p className="text-[10px] text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
+                  </div>
+
+                  {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
+
+                  <button
+                    onClick={handleCreate}
+                    disabled={loading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] mt-4"
+                  >
+                    {loading ? "A Criar Cofre..." : "Finalizar Configuração"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {authMode === "login" && (
+              <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                <div className="flex items-center gap-2 mb-6">
+                  <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <ChevronRight className="rotate-180" size={20} />
+                  </button>
+                  <h2 className="text-lg font-bold">Entrar na Conta</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 mb-4 bg-slate-100 dark:bg-slate-900 p-3 rounded-xl">
+                    Faz login para sincronizar o teu cofre existente. Vais precisar do teu <b>PIN Mestre</b> para o desbloquear depois.
+                  </p>
+
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    placeholder="Email"
+                  />
+                  <input
+                    type="password"
+                    value={authPass}
+                    onChange={(e) => setAuthPass(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    placeholder="Password da Conta"
+                  />
+
+                  {(authErr || authMsg) && (
+                    <div className={`p-3 rounded-xl text-xs font-bold text-center ${authErr ? "text-red-500 bg-red-500/10" : "text-emerald-500 bg-emerald-500/10"}`}>
+                      {authErr || authMsg}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={async () => {
+                        await doEmailAuth();
+                        // After successful login, try sync
+                        if (!authErr) {
+                          setAuthLoading(true);
+                          setAuthMsg("A procurar cofre...");
+                          const res = await initialSync("richiesafe_vault_blob");
+                          if (res.mode !== "empty" && res.mode !== "offline") {
+                            // Vault found!
+                            setHasVault(true);
+                            setAuthMsg("");
+                          } else {
+                            setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
+                          }
+                          setAuthLoading(false);
+                        }
+                      }}
+                      disabled={authLoading}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
+                    >
+                      {authLoading ? "..." : "Entrar"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await doGoogle();
+                        // After Google login, try sync
+                        if (!authErr && auth.currentUser) {
+                          setAuthLoading(true);
+                          setAuthMsg("A procurar cofre...");
+                          const res = await initialSync("richiesafe_vault_blob");
+                          if (res.mode !== "empty" && res.mode !== "offline") {
+                            setHasVault(true);
+                            setAuthMsg("");
+                          } else {
+                            setAuthMsg("Nenhum cofre encontrado.");
+                          }
+                          setAuthLoading(false);
+                        }
+                      }}
+                      disabled={authLoading}
+                      className={`font-bold py-3 rounded-2xl border active:scale-[0.98] ${isDarkMode ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50"}`}
+                    >
+                      Google
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ---- RESET VAULT (only when vault exists) ---- */}
         {hasVault && (
@@ -791,12 +762,17 @@ const webAuthnBiometrics = {
           name: "user@richiesafe",
           displayName: "RichieSafe User"
         },
-        pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },   // ES256 (P-256 + SHA-256) - Most common
+          { type: "public-key", alg: -257 }, // RS256 (RSA + SHA-256) - Often needed for TPMs/Windows Hello/macOS
+        ],
         authenticatorSelection: {
           authenticatorAttachment: "platform",
-          userVerification: "required"
+          userVerification: "required",
+          requireResidentKey: false,
         },
-        timeout: 60000
+        timeout: 60000,
+        attestation: "none"
       }
     });
 
