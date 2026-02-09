@@ -136,6 +136,34 @@ function isProbablyMnemonic(s) {
 }
 
 /* ------------------------------ Auth Screen ------------------------------ */
+
+async function nukeFirebaseData() {
+  console.warn("Attempting to nuke corrupt Firebase data...");
+  try {
+    if (window.indexedDB && window.indexedDB.databases) {
+      const dbs = await window.indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name && (db.name.includes("firebase") || db.name.includes("firestore"))) {
+          console.log("Deleting DB:", db.name);
+          window.indexedDB.deleteDatabase(db.name);
+        }
+      }
+    }
+    // Also try to clear localStorage specific keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes("firebase")) {
+        localStorage.removeItem(key);
+      }
+    }
+    // Set a flag to avoid nuke loops if possible, or just trust reload fixes it
+    sessionStorage.setItem("richiesafe_nuked", "true");
+    window.location.reload();
+  } catch (e) {
+    console.warn("Nuke failed:", e);
+  }
+}
+
 const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const { unlock, create, isReady } = useSecurity();
   const [hasVault, setHasVault] = useState(false);
@@ -184,6 +212,10 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       try {
         const syncResult = await initialSync(STORAGE_KEY);
         console.log("Sync result:", syncResult);
+
+        // If we succeeded, clear the nuke flag so we can nuke again if needed later
+        sessionStorage.removeItem("richiesafe_nuked");
+
         if (syncResult.mode !== "empty" && syncResult.mode !== "offline") {
           setHasVault(true);
           if (syncResult.mode === "offline_fallback") {
@@ -196,7 +228,17 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         }
       } catch (e) {
         console.warn("Vault check failed:", e);
-        setAuthErr(getErrorMessage(e));
+        const errMsg = getErrorMessage(e);
+        setAuthErr(errMsg);
+
+        // Check for specific "Target ID" error which means DB corruption
+        if (errMsg.includes("Target ID") || String(e).includes("Target ID")) {
+          setAuthMsg("A reparar base de dados corrompida...");
+          // Only nuke if we haven't just done it (to avoid loops), OR if it's a persistent error
+          // Actually, if it persists after reload, we might need to nuke again? 
+          // Better to just run it. The function handles the reload.
+          nukeFirebaseData();
+        }
       } finally {
         setAuthLoading(false);
       }
