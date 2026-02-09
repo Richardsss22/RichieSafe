@@ -464,6 +464,13 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       >
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
 
+        {/* DEBUG: Firebase Status Banner */}
+        {!auth && (
+          <div className="absolute top-2 left-0 w-full text-center text-xs font-bold text-yellow-500 bg-yellow-500/10 py-1">
+            ⚠️ Firebase desligado (Config em falta)
+          </div>
+        )}
+
         {/* NORMAL UI START */}
         <div className="flex justify-between items-start mb-8">
           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
