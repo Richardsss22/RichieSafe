@@ -4,7 +4,9 @@ import {
     initializeFirestore,
     persistentLocalCache,
     persistentMultipleTabManager,
-    memoryLocalCache
+    memoryLocalCache,
+    getFirestore,
+    enableIndexedDbPersistence
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -32,17 +34,22 @@ if (firebaseConfig.apiKey) {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
 
-        // Safari/Firefox Private Mode compatibility
-        try {
-            db = initializeFirestore(app, {
-                localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-            });
-        } catch (e) {
-            console.warn("Firestore persistence failed, falling back to memory", e);
-            db = initializeFirestore(app, {
-                localCache: memoryLocalCache()
-            });
-        }
+        // Use default Firestore settings (Memory cache by default, less error prone)
+        // We can try to enable persistence later if connectivity works
+        db = getFirestore(app);
+        /*
+                // Safari/Firefox Private Mode compatibility
+                try {
+                    db = initializeFirestore(app, {
+                        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+                    });
+                } catch (e) {
+                    console.warn("Firestore persistence failed, falling back to memory", e);
+                    db = initializeFirestore(app, {
+                        localCache: memoryLocalCache()
+                    });
+                }
+        */
 
         storage = getStorage(app);
     } catch (e) {
