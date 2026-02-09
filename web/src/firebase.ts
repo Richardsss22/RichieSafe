@@ -35,13 +35,11 @@ if (firebaseConfig.apiKey) {
         // Safari/Firefox Private Mode compatibility
         try {
             db = initializeFirestore(app, {
-                experimentalForceLongPolling: true,
                 localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
             });
         } catch (e) {
             console.warn("Firestore persistence failed, falling back to memory", e);
             db = initializeFirestore(app, {
-                experimentalForceLongPolling: true,
                 localCache: memoryLocalCache()
             });
         }

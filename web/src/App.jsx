@@ -39,8 +39,8 @@ const STORAGE_KEY = "richiesafe_vault_blob";
 /* ------------------------------ Helpers ------------------------------ */
 function getErrorMessage(error) {
   const msg = String(error?.message || error);
-  if (msg.includes("client is offline") || msg.includes("network-request-failed"))
-    return "Sem ligação à internet. Verifica a tua rede.";
+  if (msg.includes("client is offline") || msg.includes("network-request-failed") || msg.includes("unavailable"))
+    return "Sem ligação ou bloqueado pelo browser (Modo Privado?).";
 
   if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request"))
     return "Janela de login fechada.";
