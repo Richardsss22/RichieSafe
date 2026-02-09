@@ -28,7 +28,7 @@ import {
   ChevronRight,
   Image as ImageIcon,
 } from "lucide-react";
-import { listenAuth, logoutFirebase, loginEmail, registerEmail, loginGoogle, handleGoogleRedirect } from "./auth";
+import { listenAuth, logoutFirebase, loginEmail, registerEmail, loginGoogle, loginGooglePopup, handleGoogleRedirect } from "./auth";
 import { auth } from "./firebase";
 import { initialSync, listenRemoteChanges, pushLocal, bumpLocalMeta } from "./sync";
 import { useSecurity } from "./context/SecurityContext";
@@ -146,12 +146,19 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [authMsg, setAuthMsg] = useState("");
   const [authErr, setAuthErr] = useState("");
   const [showCloudSync, setShowCloudSync] = useState(false); // Collapsible Cloud Sync section
+  const [canRetryPopup, setCanRetryPopup] = useState(false); // New state for popup retry
 
   // Handle Google redirect result on page load
   useEffect(() => {
     const processGoogleRedirect = async () => {
       try {
         const result = await handleGoogleRedirect();
+        if (result?.error === "redirect_failed_silent") {
+          setAuthErr("Login por redirecionamento falhou. O teu browser pode estar a bloquear cookies (Modo Privado?). Tenta a opção 'Popup'.");
+          setCanRetryPopup(true);
+          return;
+        }
+
         if (result?.user) {
           console.log("Google redirect login successful:", result.user.email);
           setAuthMsg("Sessão iniciada com Google.");
@@ -231,9 +238,28 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
     setAuthErr("");
     setAuthMsg("");
     setAuthLoading(true);
+    setCanRetryPopup(false); // Reset
     try {
       await loginGoogle();
-      setAuthMsg("Sessão iniciada com Google.");
+      setAuthMsg("A redirecionar para a Google...");
+    } catch (e) {
+      console.error(e);
+      setAuthErr(getErrorMessage(e));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const doGooglePopup = async () => {
+    setAuthErr("");
+    setAuthMsg("");
+    setAuthLoading(true);
+    try {
+      const result = await loginGooglePopup();
+      if (result.user) {
+        setAuthMsg("Login via Popup com sucesso!");
+        // checking vault is handled by the user effect
+      }
     } catch (e) {
       console.error(e);
       setAuthErr(getErrorMessage(e));
@@ -689,6 +715,17 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                       <Search size={20} />
                       Já Tenho Conta
                     </button>
+
+                    {/* Popup Retry Button */}
+                    {canRetryPopup && (
+                      <button
+                        onClick={doGooglePopup}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                      >
+                        <Search size={20} />
+                        Tentar via Popup
+                      </button>
+                    )}
                   </div>
                 )}
 
