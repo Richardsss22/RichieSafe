@@ -638,73 +638,103 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                     Faz login para sincronizar o teu cofre existente. Vais precisar do teu <b>PIN Mestre</b> para o desbloquear depois.
                   </p>
 
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    placeholder="Email"
-                  />
-                  <input
-                    type="password"
-                    value={authPass}
-                    onChange={(e) => setAuthPass(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    placeholder="Password da Conta"
-                  />
+                  <div className="space-y-3">
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                        : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                        }`}
+                      placeholder="Email"
+                      type="email"
+                      autoComplete="email"
+                    />
+                    <input
+                      value={authPass}
+                      onChange={(e) => setAuthPass(e.target.value)}
+                      className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                        ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                        : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                        }`}
+                      placeholder="Password"
+                      type="password"
+                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                    />
 
-                  {(authErr || authMsg) && (
-                    <div className={`p-3 rounded-xl text-xs font-bold text-center ${authErr ? "text-red-500 bg-red-500/10" : "text-emerald-500 bg-emerald-500/10"}`}>
-                      {authErr || authMsg}
+                    {(authErr || authMsg) && (
+                      <div className={`p-3 rounded-xl text-xs font-bold text-center ${authErr
+                        ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                        : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+                        }`}>
+                        {authErr || authMsg}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await doEmailAuth();
+                            // doEmailAuth sets authErr on failure
+                            // CHECK authErr state directly might be stale due to closure, check auth.currentUser instead?
+                            // doEmailAuth is async and sets state. We should rely on try/catch inside doEmailAuth re-throwing?
+                            // Actually doEmailAuth catches its own errors. We need to check if we have a user.
+
+                            if (auth.currentUser) {
+                              setAuthLoading(true);
+                              setAuthMsg("A procurar cofre...");
+                              const res = await initialSync("richiesafe_vault_blob");
+                              if (res.mode !== "empty" && res.mode !== "offline") {
+                                setHasVault(true);
+                                setAuthMsg("");
+                              } else {
+                                setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
+                              }
+                            }
+                          } catch (e) {
+                            console.error(e);
+                          } finally {
+                            setAuthLoading(false);
+                          }
+                        }}
+                        disabled={authLoading}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50"
+                      >
+                        {authLoading ? "..." : "Entrar"}
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          try {
+                            await doGoogle();
+                            if (auth.currentUser) {
+                              setAuthLoading(true);
+                              setAuthMsg("A procurar cofre...");
+                              const res = await initialSync("richiesafe_vault_blob");
+                              if (res.mode !== "empty" && res.mode !== "offline") {
+                                setHasVault(true);
+                                setAuthMsg("");
+                              } else {
+                                setAuthMsg("Nenhum cofre encontrado.");
+                              }
+                            }
+                          } catch (e) {
+                            console.error(e);
+                          } finally {
+                            setAuthLoading(false);
+                          }
+                        }}
+                        disabled={authLoading}
+                        className={`font-bold py-3 rounded-2xl border active:scale-[0.98] disabled:opacity-50 ${isDarkMode
+                          ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                          : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+                          }`}
+                        title="Login com Google"
+                      >
+                        Google
+                      </button>
                     </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={async () => {
-                        await doEmailAuth();
-                        // After successful login, try sync
-                        if (!authErr) {
-                          setAuthLoading(true);
-                          setAuthMsg("A procurar cofre...");
-                          const res = await initialSync("richiesafe_vault_blob");
-                          if (res.mode !== "empty" && res.mode !== "offline") {
-                            // Vault found!
-                            setHasVault(true);
-                            setAuthMsg("");
-                          } else {
-                            setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
-                          }
-                          setAuthLoading(false);
-                        }
-                      }}
-                      disabled={authLoading}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
-                    >
-                      {authLoading ? "..." : "Entrar"}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await doGoogle();
-                        // After Google login, try sync
-                        if (!authErr && auth.currentUser) {
-                          setAuthLoading(true);
-                          setAuthMsg("A procurar cofre...");
-                          const res = await initialSync("richiesafe_vault_blob");
-                          if (res.mode !== "empty" && res.mode !== "offline") {
-                            setHasVault(true);
-                            setAuthMsg("");
-                          } else {
-                            setAuthMsg("Nenhum cofre encontrado.");
-                          }
-                          setAuthLoading(false);
-                        }
-                      }}
-                      disabled={authLoading}
-                      className={`font-bold py-3 rounded-2xl border active:scale-[0.98] ${isDarkMode ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50"}`}
-                    >
-                      Google
-                    </button>
                   </div>
                 </div>
               </div>
