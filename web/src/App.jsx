@@ -155,8 +155,8 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       }
       setAuthPass("");
     } catch (e) {
-      setAuthErr("Falha na autenticação. Verifica credenciais.");
       console.error(e);
+      setAuthErr(`Erro: ${e.message}`);
     } finally {
       setAuthLoading(false);
     }
@@ -170,8 +170,8 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       await loginGoogle();
       setAuthMsg("Sessão iniciada com Google.");
     } catch (e) {
-      setAuthErr("Falha no login Google.");
       console.error(e);
+      setAuthErr(`Erro Google: ${e.message}`);
     } finally {
       setAuthLoading(false);
     }
@@ -676,6 +676,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         onClick={async () => {
+                          setAuthErr("");
                           try {
                             await doEmailAuth();
                             // doEmailAuth sets authErr on failure
@@ -696,7 +697,8 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
-                            setAuthMsg("Erro ao entrar. Tenta novamente.");
+                            setAuthErr("Erro ao entrar. Tenta novamente.");
+                            setAuthMsg("");
                           } finally {
                             setAuthLoading(false);
                           }
@@ -709,6 +711,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
 
                       <button
                         onClick={async () => {
+                          setAuthErr("");
                           try {
                             await doGoogle();
                             if (auth.currentUser) {
@@ -724,7 +727,8 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
-                            setAuthMsg("Erro ao entrar com Google.");
+                            setAuthErr("Erro ao entrar com Google.");
+                            setAuthMsg("");
                           } finally {
                             setAuthLoading(false);
                           }
