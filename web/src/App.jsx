@@ -192,6 +192,22 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [error, setError] = useState("");
   const [isRecovering, setIsRecovering] = useState(false);
 
+  // Sync Status State
+  const [syncStatus, setSyncStatus] = useState(navigator.onLine ? "online" : "offline");
+  const [lastSync, setLastSync] = useState(null);
+
+  // Sync Status Effect
+  useEffect(() => {
+    const handleOnline = () => setSyncStatus("online");
+    const handleOffline = () => setSyncStatus("offline");
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   // StrictMode guard
   const generatedOnceRef = useRef(false);
 
@@ -1089,8 +1105,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
 
   const persistExport = async () => {
     // We only persist if it's the main blob.
-    // In context-based approach, context handles export/sync usually, 
-    // but here we manually save to storage for persistence using context export.
+    setSyncStatus("syncing");
     try {
       const blob = vaultHandle.export();
       await storage.set("richiesafe_vault_blob", JSON.stringify(Array.from(blob)));
@@ -1098,8 +1113,12 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
       // SYNC: Bump & Push
       bumpLocalMeta();
       await pushLocal("richiesafe_vault_blob");
+
+      setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setSyncStatus("online");
     } catch (e) {
       console.error("Auto-save failed", e);
+      setSyncStatus("offline");
     }
   };
 
@@ -1248,13 +1267,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div
-              className={`hidden sm:flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border ${isDarkMode ? "bg-slate-900 border-slate-800 text-slate-500" : "bg-white border-slate-200 text-slate-600 shadow-sm"
-                }`}
-            >
-              <ShieldCheck size={14} className="text-emerald-500" />
-              <span>Local</span>
-            </div>
+            <SyncStatusIndicator status={syncStatus} lastSync={lastSync} isDarkMode={isDarkMode} />
 
             <button
               onClick={doLogout}
@@ -1719,6 +1732,62 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+/* --- Sync Status Indicator --- */
+const SyncStatusIndicator = ({ status, lastSync, isDarkMode }) => {
+  // status: 'online' | 'syncing' | 'offline'
+
+  if (status === 'syncing') {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600"
+        }`}>
+        <div className="relative w-4 h-4">
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="text-[10px] font-bold uppercase tracking-wider">A Sincronizar...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'offline') {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-red-50 border-red-200 text-red-600"
+        }`}>
+        <div className="relative w-4 h-4 flex items-center justify-center">
+          <div className="absolute w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+          </svg>
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-wider">Offline</span>
+      </div>
+    );
+  }
+
+  // Online (Default)
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-green-50 border-green-200 text-green-700"
+      }`}>
+      <div className="relative w-4 h-4">
+        <svg className="w-4 h-4 backup-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="signal-ring w-full h-full border border-green-400 rounded-full opacity-0"></div>
+        </div>
+      </div>
+      <div className="flex flex-col leading-none">
+        <span className="text-[10px] font-bold uppercase tracking-wider">Online</span>
+        {lastSync && <span className="text-[8px] opacity-70">Sync: {lastSync}</span>}
+      </div>
     </div>
   );
 };
