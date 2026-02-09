@@ -38,9 +38,16 @@ const STORAGE_KEY = "richiesafe_vault_blob";
 
 /* ------------------------------ Helpers ------------------------------ */
 function getErrorMessage(error) {
-  const msg = String(error?.message || error);
+  const msg = String(error?.message || error).toLowerCase();
+
+  // Suppress technical initial state error commonly seen on load
+  if (msg.includes("missing initial state")) return "";
+
   if (msg.includes("client is offline") || msg.includes("network-request-failed") || msg.includes("unavailable"))
     return "Sem ligação ou bloqueado pelo browser (Modo Privado?).";
+
+  if (msg.includes("auth/unauthorized-domain"))
+    return "Domínio não autorizado. Adiciona este site na Consola Firebase > Auth.";
 
   if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request"))
     return "Janela de login fechada.";
@@ -617,7 +624,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v1.7 (Switch to web.app)</span>
+          <span>v1.9 (Google Optimized)</span>
           <button
             onClick={() => {
               if (confirm("Reset total da app?")) nukeFirebaseData();
@@ -628,20 +635,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           </button>
         </div>
 
-        {/* HOSTING DIAGNOSTIC BANNER (WARNING ONLY) */}
-        {firebaseStatus.startsWith("error") && (
-          <div className="absolute top-10 left-0 w-full bg-yellow-400 text-black p-2 z-[9999] text-[10px] font-bold text-center shadow-xl">
-            ⚠️ Hosting em configuração ({firebaseStatus}).<br />
-            Se o login falhar, aguarda 5-10 min. (Handler OK)
-          </div>
-        )}
 
-        {/* DEBUG: Firebase Status Banner */}
-        {!auth && !firebaseStatus.startsWith("error") && (
-          <div className="absolute top-2 left-0 w-full text-center text-xs font-bold text-yellow-500 bg-yellow-500/10 py-1">
-            ⚠️ Firebase desligado (Config em falta)
-          </div>
-        )}
 
         {/* NORMAL UI START */}
         <div className="flex justify-between items-start mb-8">
