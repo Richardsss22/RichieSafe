@@ -731,8 +731,138 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         {!hasVault && (
           <div className="space-y-6">
 
-            {/* LOGGED IN BUT NO VAULT (or checking) */}
-            {user ? (
+
+
+            {/* CASE A: CREATING VAULT (Logged in or not) */}
+            {authMode === "create" ? (
+              <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                <div className="flex items-center gap-2 mb-6">
+                  <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <ChevronRight className="rotate-180" size={20} />
+                  </button>
+                  <h2 className="text-lg font-bold">Configurar Cofre</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
+                    <input
+                      type="password"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest"
+                      placeholder="••••••"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
+                    <input
+                      type="password"
+                      value={panicPin}
+                      onChange={(e) => setPanicPin(e.target.value)}
+                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold text-red-600 tracking-widest"
+                      placeholder="••••••"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
+                      <button onClick={handleGenerateRecovery} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
+                    </div>
+                    <textarea
+                      value={recovery}
+                      onChange={(e) => setRecovery(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
+                      placeholder="Gera ou cola a tua frase..."
+                    />
+                    <p className="text-[10px] text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
+                  </div>
+
+                  {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
+
+                  {/* Cloud Sync - Login before creating vault */}
+                  <div className={`mt-4 rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-slate-800 bg-slate-900/50" : "border-slate-200 bg-slate-50"}`}>
+                    <button
+                      onClick={() => setShowCloudSync(!showCloudSync)}
+                      className={`w-full flex items-center justify-between px-5 py-3 text-sm font-semibold transition-colors ${isDarkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      <span>☁️ Sincronização na Nuvem {user ? "✅" : "(Opcional)"}</span>
+                      <ChevronRight className={`transition-transform ${showCloudSync ? "rotate-90" : ""}`} size={16} />
+                    </button>
+                    {showCloudSync && (
+                      <div className="px-5 pb-4 space-y-3">
+                        {user ? (
+                          <div className={`text-xs p-3 rounded-xl ${isDarkMode ? "bg-green-500/10 text-green-400 border border-green-800" : "bg-green-50 text-green-700 border border-green-200"}`}>
+                            ✅ Conectado como <b>{user.email || "Anónimo"}</b>
+                            <br /><span className="opacity-70">O cofre será sincronizado automaticamente.</span>
+                          </div>
+                        ) : (
+                          <>
+                            <p className={`text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                              Faz login para guardar o cofre na nuvem e sincronizar entre dispositivos.
+                            </p>
+                            <div className="space-y-2">
+                              <input
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className={`w-full rounded-xl px-4 py-2.5 outline-none text-sm transition-all ${isDarkMode
+                                  ? "bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500/50"
+                                  : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                                  }`}
+                                placeholder="Email"
+                                type="email"
+                              />
+                              <input
+                                value={authPass}
+                                onChange={(e) => setAuthPass(e.target.value)}
+                                className={`w-full rounded-xl px-4 py-2.5 outline-none text-sm transition-all ${isDarkMode
+                                  ? "bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500/50"
+                                  : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                                  }`}
+                                placeholder="Password"
+                                type="password"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={doEmailAuth}
+                                  disabled={authLoading}
+                                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDarkMode
+                                    ? "bg-slate-700 hover:bg-slate-600 text-white"
+                                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                                    }`}
+                                >
+                                  {authLoading ? "..." : "Entrar"}
+                                </button>
+                                <button
+                                  onClick={doGoogle}
+                                  disabled={authLoading}
+                                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all"
+                                >
+                                  Google
+                                </button>
+                              </div>
+                            </div>
+                            {authErr && <div className="text-red-500 text-[11px] font-bold">{authErr}</div>}
+                            {authMsg && <div className={`text-[11px] font-medium ${isDarkMode ? "text-indigo-400" : "text-indigo-600"}`}>{authMsg}</div>}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleCreate}
+                    disabled={loading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] mt-4"
+                  >
+                    {loading ? "A Criar Cofre..." : "Finalizar Configuração"}
+                  </button>
+                </div>
+              </div>
+            ) : user ? (
+              /* CASE B: LOGGED IN BUT NO VAULT (or checking) */
               <div className="text-center space-y-4 animate-in fade-in zoom-in duration-300">
                 <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
                   <p className="text-xs text-indigo-500 dark:text-indigo-400 font-bold uppercase tracking-widest mb-1">CONECTADO COMO</p>
@@ -770,7 +900,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                 </div>
               </div>
             ) : (
-              /* NOT LOGGED IN */
+              /* CASE C: NOT LOGGED IN -> WELCOME / LOGIN */
               <>
                 {/* View Switching Logic */}
                 {authMode === "welcome" && (
@@ -814,135 +944,6 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                         Tentar via Popup
                       </button>
                     )}
-                  </div>
-                )}
-
-                {authMode === "create" && (
-                  <div className="animate-in fade-in slide-in-from-right-8 duration-300">
-                    <div className="flex items-center gap-2 mb-6">
-                      <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <ChevronRight className="rotate-180" size={20} />
-                      </button>
-                      <h2 className="text-lg font-bold">Configurar Cofre</h2>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
-                        <input
-                          type="password"
-                          value={pin}
-                          onChange={(e) => setPin(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest"
-                          placeholder="••••••"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
-                        <input
-                          type="password"
-                          value={panicPin}
-                          onChange={(e) => setPanicPin(e.target.value)}
-                          className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold text-red-600 tracking-widest"
-                          placeholder="••••••"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
-                          <button onClick={handleGenerateRecovery} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
-                        </div>
-                        <textarea
-                          value={recovery}
-                          onChange={(e) => setRecovery(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
-                          placeholder="Gera ou cola a tua frase..."
-                        />
-                        <p className="text-[10px] text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
-                      </div>
-
-                      {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
-
-                      {/* Cloud Sync - Login before creating vault */}
-                      <div className={`mt-4 rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-slate-800 bg-slate-900/50" : "border-slate-200 bg-slate-50"}`}>
-                        <button
-                          onClick={() => setShowCloudSync(!showCloudSync)}
-                          className={`w-full flex items-center justify-between px-5 py-3 text-sm font-semibold transition-colors ${isDarkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
-                        >
-                          <span>☁️ Sincronização na Nuvem {user ? "✅" : "(Opcional)"}</span>
-                          <ChevronRight className={`transition-transform ${showCloudSync ? "rotate-90" : ""}`} size={16} />
-                        </button>
-                        {showCloudSync && (
-                          <div className="px-5 pb-4 space-y-3">
-                            {user ? (
-                              <div className={`text-xs p-3 rounded-xl ${isDarkMode ? "bg-green-500/10 text-green-400 border border-green-800" : "bg-green-50 text-green-700 border border-green-200"}`}>
-                                ✅ Conectado como <b>{user.email || "Anónimo"}</b>
-                                <br /><span className="opacity-70">O cofre será sincronizado automaticamente.</span>
-                              </div>
-                            ) : (
-                              <>
-                                <p className={`text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                                  Faz login para guardar o cofre na nuvem e sincronizar entre dispositivos.
-                                </p>
-                                <div className="space-y-2">
-                                  <input
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className={`w-full rounded-xl px-4 py-2.5 outline-none text-sm transition-all ${isDarkMode
-                                      ? "bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500/50"
-                                      : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                                      }`}
-                                    placeholder="Email"
-                                    type="email"
-                                  />
-                                  <input
-                                    value={authPass}
-                                    onChange={(e) => setAuthPass(e.target.value)}
-                                    className={`w-full rounded-xl px-4 py-2.5 outline-none text-sm transition-all ${isDarkMode
-                                      ? "bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500/50"
-                                      : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                                      }`}
-                                    placeholder="Password"
-                                    type="password"
-                                  />
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={doEmailAuth}
-                                      disabled={authLoading}
-                                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDarkMode
-                                        ? "bg-slate-700 hover:bg-slate-600 text-white"
-                                        : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                                        }`}
-                                    >
-                                      {authLoading ? "..." : "Entrar"}
-                                    </button>
-                                    <button
-                                      onClick={doGoogle}
-                                      disabled={authLoading}
-                                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all"
-                                    >
-                                      Google
-                                    </button>
-                                  </div>
-                                </div>
-                                {authErr && <div className="text-red-500 text-[11px] font-bold">{authErr}</div>}
-                                {authMsg && <div className={`text-[11px] font-medium ${isDarkMode ? "text-indigo-400" : "text-indigo-600"}`}>{authMsg}</div>}
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={handleCreate}
-                        disabled={loading}
-                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] mt-4"
-                      >
-                        {loading ? "A Criar Cofre..." : "Finalizar Configuração"}
-                      </button>
-                    </div>
                   </div>
                 )}
 
