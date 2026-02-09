@@ -1,9 +1,9 @@
 {
   "projects": {
-    "default": "richiesafe-b7e91"
+    "default": "richiesafe-f1d07"
   },
   "targets": {
-    "richiesafe-b7e91": {
+    "richiesafe-f1d07": {
       "hosting": {
         "app": [
           "richiesafe"

@@ -5,7 +5,8 @@ import {
     signOut,
     User,
     GoogleAuthProvider,
-    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
 } from "firebase/auth";
 import { auth } from "./firebase";
 
@@ -31,10 +32,24 @@ export async function loginGoogle() {
     if (!auth) throw new Error("Cloud sync disabled");
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    return signInWithPopup(auth, provider);
+    // Use redirect instead of popup - works better on GitHub Pages and mobile
+    return signInWithRedirect(auth, provider);
+}
+
+// Call this on app load to handle redirect result
+export async function handleGoogleRedirect() {
+    if (!auth) return null;
+    try {
+        const result = await getRedirectResult(auth);
+        return result;
+    } catch (e) {
+        console.error("Google redirect result error:", e);
+        throw e;
+    }
 }
 
 export async function logoutFirebase() {
     if (!auth) return;
     return signOut(auth);
 }
+

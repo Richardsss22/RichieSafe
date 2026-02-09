@@ -28,7 +28,7 @@ import {
   ChevronRight,
   Image as ImageIcon,
 } from "lucide-react";
-import { listenAuth, logoutFirebase, loginEmail, registerEmail, loginGoogle } from "./auth";
+import { listenAuth, logoutFirebase, loginEmail, registerEmail, loginGoogle, handleGoogleRedirect } from "./auth";
 import { auth } from "./firebase";
 import { initialSync, listenRemoteChanges, pushLocal, bumpLocalMeta } from "./sync";
 import { useSecurity } from "./context/SecurityContext";
@@ -146,6 +146,39 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [authMsg, setAuthMsg] = useState("");
   const [authErr, setAuthErr] = useState("");
   const [showCloudSync, setShowCloudSync] = useState(false); // Collapsible Cloud Sync section
+
+  // Handle Google redirect result on page load
+  useEffect(() => {
+    const processGoogleRedirect = async () => {
+      try {
+        const result = await handleGoogleRedirect();
+        if (result?.user) {
+          console.log("Google redirect login successful:", result.user.email);
+          setAuthMsg("Sessão iniciada com Google.");
+          // Trigger sync for the logged-in user
+          setAuthLoading(true);
+          try {
+            const syncResult = await initialSync(STORAGE_KEY);
+            if (syncResult.mode !== "empty" && syncResult.mode !== "offline") {
+              setHasVault(true);
+              if (syncResult.mode === "offline_fallback") {
+                setAuthMsg("Modo Offline: Usando cópia local.");
+              }
+            }
+          } catch (syncErr) {
+            console.warn("Sync after Google login failed:", syncErr);
+            setAuthErr(getErrorMessage(syncErr));
+          } finally {
+            setAuthLoading(false);
+          }
+        }
+      } catch (e) {
+        console.error("Google redirect error:", e);
+        setAuthErr(getErrorMessage(e));
+      }
+    };
+    processGoogleRedirect();
+  }, []);
 
   const doEmailAuth = async () => {
     setAuthErr("");
