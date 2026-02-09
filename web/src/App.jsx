@@ -142,6 +142,34 @@ function isProbablyMnemonic(s) {
   return true;
 }
 
+/* ------------------------------ Confirm Modal ------------------------------ */
+function ConfirmModal({ open, title, message, onConfirm, onCancel, isDarkMode }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
+      <div
+        className={`w-[90%] max-w-sm rounded-2xl p-6 shadow-2xl ${isDarkMode ? "bg-[#1a1a2e] text-white border border-slate-700" : "bg-white text-black"
+          }`}
+        onClick={e => e.stopPropagation()}
+      >
+        {title && <h3 className="text-lg font-bold mb-2">{title}</h3>}
+        <p className={`text-sm mb-6 whitespace-pre-line ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${isDarkMode ? "bg-slate-700 hover:bg-slate-600 text-white" : "bg-slate-200 hover:bg-slate-300 text-black"
+              }`}
+          >Cancelar</button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-xl font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors"
+          >Confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ Auth Screen ------------------------------ */
 
 async function nukeFirebaseData() {
@@ -169,6 +197,7 @@ async function nukeFirebaseData() {
 const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const { unlock, create, isReady } = useSecurity();
   const [hasVault, setHasVault] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
 
   // ---- Sessão (Firebase Auth) - opcional ----
   const [authMode, setAuthMode] = useState("welcome"); // "welcome" | "create" | "login" | "register"
@@ -561,18 +590,17 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   };
 
   const handleReset = () => {
-    const ok = window.confirm(
-      "ATENÇÃO: Isto vai APAGAR PERMANENTEMENTE o cofre guardado neste browser.\n\n" +
-      "Queres continuar?"
-    );
-    if (!ok) return;
-
-    storage.remove("richiesafe_vault_blob");
-    storage.remove("richiesafe_vault_decoy");
-    localStorage.removeItem("richiesafe_theme");
-
-    clearSensitiveInputs();
-    window.location.reload();
+    setConfirmModal({
+      title: "⚠️ Destruir Cofre",
+      message: "ATENÇÃO: Isto vai APAGAR PERMANENTEMENTE o cofre guardado neste browser.\n\nQueres continuar?",
+      onConfirm: () => {
+        storage.remove("richiesafe_vault_blob");
+        storage.remove("richiesafe_vault_decoy");
+        localStorage.removeItem("richiesafe_theme");
+        clearSensitiveInputs();
+        window.location.reload();
+      }
+    });
   };
 
   useEffect(() => {
@@ -586,6 +614,14 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${isDarkMode ? "bg-[#0a0a0c]" : "bg-white"
         }`}
     >
+      <ConfirmModal
+        open={!!confirmModal}
+        title={confirmModal?.title}
+        message={confirmModal?.message}
+        onConfirm={() => { setConfirmModal(null); confirmModal?.onConfirm(); }}
+        onCancel={() => setConfirmModal(null)}
+        isDarkMode={isDarkMode}
+      />
       <div
         className={`w-full max-w-md rounded-[2.5rem] p-8 lg:p-10 relative overflow-hidden transition-all duration-300 ${isDarkMode
           ? "bg-[#111114] shadow-2xl border border-slate-800"
@@ -595,13 +631,20 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v2.2</span>
+          <span>v2.3</span>
           <button
-            onClick={async () => {
-              if (confirm("Reset total da app?")) {
-                await nukeFirebaseData();
-                window.location.reload();
-              }
+            onClick={() => {
+              setConfirmModal({
+                title: "Reset App",
+                message: "Isto vai limpar todos os dados da app (Firebase + cofre local).\n\nQueres continuar?",
+                onConfirm: async () => {
+                  await nukeFirebaseData();
+                  storage.remove("richiesafe_vault_blob");
+                  storage.remove("richiesafe_vault_decoy");
+                  localStorage.removeItem("richiesafe_theme");
+                  window.location.reload();
+                }
+              });
             }}
             className="underline hover:text-red-500 cursor-pointer pointer-events-auto"
           >
@@ -1337,6 +1380,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mode] = useState(getModeFromUrl);
+  const [confirmModal, setConfirmModal] = useState(null);
 
   const isWebMode = mode === "web" || mode === "emergency";
 
@@ -1559,20 +1603,22 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Tens a certeza que queres eliminar este item?")) return;
-    try {
-      vaultHandle.delete_entry(id);
-
-      // Update UI immediately (Optimistic)
-      refreshItems();
-      closeDetails();
-
-      await persistExport();
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao eliminar: " + e);
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      title: "Eliminar Item",
+      message: "Tens a certeza que queres eliminar este item?",
+      onConfirm: async () => {
+        try {
+          vaultHandle.delete_entry(id);
+          refreshItems();
+          closeDetails();
+          await persistExport();
+        } catch (e) {
+          console.error(e);
+          alert("Erro ao eliminar: " + e);
+        }
+      }
+    });
   };
 
   const filteredItems = useMemo(() => {
@@ -1589,6 +1635,14 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
       className={`flex h-screen w-full transition-colors duration-300 ${isDarkMode ? "dark bg-[#0a0a0c] text-slate-200" : "bg-white text-slate-800"
         }`}
     >
+      <ConfirmModal
+        open={!!confirmModal}
+        title={confirmModal?.title}
+        message={confirmModal?.message}
+        onConfirm={() => { setConfirmModal(null); confirmModal?.onConfirm(); }}
+        onCancel={() => setConfirmModal(null)}
+        isDarkMode={isDarkMode}
+      />
       {/* Sidebar - Desktop */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 lg:relative lg:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
