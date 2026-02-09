@@ -971,9 +971,10 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
 
   // Sync Status State - depends on Firebase user AND internet
   const [lastSync, setLastSync] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Derive syncStatus from user and network
-  const syncStatus = !user ? "offline" : (navigator.onLine ? "online" : "offline");
+  // Derive syncStatus from user, network, and syncing state
+  const syncStatus = isSyncing ? "syncing" : (!user ? "offline" : (navigator.onLine ? "online" : "offline"));
 
   const revealTimerRef = useRef(null);
   const clipboardTimerRef = useRef(null);
@@ -1111,7 +1112,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
 
   const persistExport = async () => {
     // We only persist if it's the main blob.
-    setSyncStatus("syncing");
+    setIsSyncing(true);
     try {
       const blob = vaultHandle.export();
       await storage.set("richiesafe_vault_blob", JSON.stringify(Array.from(blob)));
@@ -1121,10 +1122,10 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
       await pushLocal("richiesafe_vault_blob");
 
       setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      setSyncStatus("online");
     } catch (e) {
       console.error("Auto-save failed", e);
-      setSyncStatus("offline");
+    } finally {
+      setIsSyncing(false);
     }
   };
 

@@ -7,6 +7,10 @@ on:
       - 'preview/**'
   workflow_dispatch:
 
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-preview:
     runs-on: ubuntu-latest
