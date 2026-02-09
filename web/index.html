@@ -6,7 +6,19 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>web</title>
-</head>
+  <script>
+    console.log("DEBUG: Inline script in index.html is RUNNING");
+    window.onerror = function(msg, url, line, col, error) {
+      console.error("DEBUG: Global Error (Inline):", msg, error);
+      document.body.innerHTML += '<div style="color:red;z-index:9999;position:fixed;top:0;background:white;">Error (Inline): ' + msg + '</div>';
+    };
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log("DEBUG: DOMContentLoaded event fired");
+    });
+    window.addEventListener('load', () => {
+      console.log("DEBUG: Window Load event fired");
+    });
+  </script>
 
 <body>
   <div id="root"></div>
