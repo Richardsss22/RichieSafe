@@ -3,6 +3,7 @@ name: Preview Deploy
 on:
   push:
     branches:
+      - main
       - feature/ui-improvements
       - 'preview/**'
   workflow_dispatch:
