@@ -1151,9 +1151,12 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
     if (!window.confirm("Tens a certeza que queres eliminar este item?")) return;
     try {
       vaultHandle.delete_entry(id);
-      await persistExport();
+
+      // Update UI immediately (Optimistic)
       refreshItems();
       closeDetails();
+
+      await persistExport();
     } catch (e) {
       console.error(e);
       alert("Erro ao eliminar: " + e);
