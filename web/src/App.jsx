@@ -273,11 +273,15 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
 
         // Check for specific "Target ID" error which means DB corruption
         if (errMsg.includes("Target ID") || String(e).includes("Target ID")) {
-          setAuthMsg("A reparar base de dados corrompida...");
-          // Only nuke if we haven't just done it (to avoid loops), OR if it's a persistent error
-          // Actually, if it persists after reload, we might need to nuke again? 
-          // Better to just run it. The function handles the reload.
-          nukeFirebaseData();
+          // FIX: Check for loop to avoid infinite reloads
+          if (sessionStorage.getItem("richiesafe_nuked")) {
+            console.error("Nuke loop detected. Aborting self-healing.");
+            setAuthErr("Erro crítico de persistência. Limpa os dados do browser manualmente.");
+            setAuthMsg("");
+          } else {
+            setAuthMsg("A reparar base de dados corrompida...");
+            nukeFirebaseData();
+          }
         }
       } finally {
         setAuthLoading(false);
@@ -624,7 +628,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v1.9 (Google Optimized)</span>
+          <span>v2.0 (Stable)</span>
           <button
             onClick={() => {
               if (confirm("Reset total da app?")) nukeFirebaseData();
