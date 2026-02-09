@@ -469,7 +469,9 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           RichieSafe
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mb-8 font-medium">
-          {hasVault ? "Bem-vindo de volta. Insira o seu PIN." : "Crie o seu novo cofre encriptado."}
+          {hasVault
+            ? "Bem-vindo de volta. Insira o seu PIN."
+            : (authMode === "login" ? "Entre na sua conta para sincronizar." : "Crie o seu novo cofre encriptado.")}
         </p>
 
         {/* ---- CONDITIONAL UI BASED ON STATE ---- */}
@@ -628,13 +630,13 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
               <div className="animate-in fade-in slide-in-from-right-8 duration-300">
                 <div className="flex items-center gap-2 mb-6">
                   <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                    <ChevronRight className="rotate-180" size={20} />
+                    <ChevronRight className="rotate-180 text-slate-900 dark:text-white" size={20} />
                   </button>
-                  <h2 className="text-lg font-bold">Entrar na Conta</h2>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Entrar na Conta</h2>
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 mb-4 bg-slate-100 dark:bg-slate-900 p-3 rounded-xl">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 bg-slate-100 dark:bg-slate-900 p-3 rounded-xl border border-transparent dark:border-slate-800">
                     Faz login para sincronizar o teu cofre existente. Vais precisar do teu <b>PIN Mestre</b> para o desbloquear depois.
                   </p>
 
@@ -684,7 +686,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             if (auth.currentUser) {
                               setAuthLoading(true);
                               setAuthMsg("A procurar cofre...");
-                              const res = await initialSync("richiesafe_vault_blob");
+                              const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
                               if (res.mode !== "empty" && res.mode !== "offline") {
                                 setHasVault(true);
                                 setAuthMsg("");
@@ -694,6 +696,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
+                            setAuthMsg("Erro ao entrar. Tenta novamente.");
                           } finally {
                             setAuthLoading(false);
                           }
@@ -711,7 +714,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             if (auth.currentUser) {
                               setAuthLoading(true);
                               setAuthMsg("A procurar cofre...");
-                              const res = await initialSync("richiesafe_vault_blob");
+                              const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
                               if (res.mode !== "empty" && res.mode !== "offline") {
                                 setHasVault(true);
                                 setAuthMsg("");
@@ -721,6 +724,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                             }
                           } catch (e) {
                             console.error(e);
+                            setAuthMsg("Erro ao entrar com Google.");
                           } finally {
                             setAuthLoading(false);
                           }

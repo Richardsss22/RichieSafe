@@ -45,7 +45,8 @@ async function downloadRemote(uid: string): Promise<{ blob: Uint8Array; updatedA
     const data: any = snap.data();
     if (!data.storagePath) return null;
 
-    const bytes = await getBytes(ref(storage, data.storagePath), 10 * 1024 * 1024); // 10MB cap
+    // Add explicit timeout to download
+    const bytes = await withTimeout(getBytes(ref(storage, data.storagePath), 10 * 1024 * 1024), 10000); // 10s timeout
     return { blob: new Uint8Array(bytes), updatedAt: data.updatedAtMs || 0 };
 }
 
@@ -90,26 +91,35 @@ export async function pushLocal(storageKey: string) {
     }
 }
 
-export async function initialSync(storageKey: string) {
+// Status callback type
+type SyncStatusCallback = (msg: string) => void;
+
+export async function initialSync(storageKey: string, onStatus?: SyncStatusCallback) {
     if (!auth) return { mode: "offline" as const };
     const u = auth.currentUser;
     if (!u) return { mode: "offline" as const };
 
     const uid = u.uid;
+    onStatus?.("A ler dados locais...");
     const localBlob = getLocalBlob(storageKey);
     const localMeta = getLocalMeta();
     const localUpdated = localMeta.updatedAt || 0;
 
+    onStatus?.("A verificar nuvem...");
+    console.time("downloadRemote");
     const remote = await downloadRemote(uid);
+    console.timeEnd("downloadRemote");
 
     // 1) Só local
     if (localBlob && !remote) {
+        onStatus?.("A enviar para a nuvem...");
         await uploadRemote(uid, localBlob);
         return { mode: "uploaded_local" as const };
     }
 
     // 2) Só remoto
     if (!localBlob && remote) {
+        onStatus?.("A guardar localmente...");
         setLocalBlob(storageKey, remote.blob);
         setLocalMeta({ ...localMeta, updatedAt: remote.updatedAt, schemaVersion: 1 });
         return { mode: "downloaded_remote" as const };
@@ -117,6 +127,7 @@ export async function initialSync(storageKey: string) {
 
     // 3) Ambos
     if (localBlob && remote) {
+        onStatus?.("A sincronizar versões...");
         if ((remote.updatedAt || 0) > localUpdated) {
             setLocalBlob(storageKey, remote.blob);
             setLocalMeta({ ...localMeta, updatedAt: remote.updatedAt, schemaVersion: 1 });
