@@ -661,6 +661,17 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                 {/* View Switching Logic */}
                 {authMode === "welcome" && (
                   <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                    {/* Error Feedback on Welcome Screen */}
+                    {(authErr || authMsg) && (
+                      <div className={`p-4 rounded-xl text-xs font-bold text-center mb-2 ${authErr
+                        ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                        : "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                        }`}>
+                        {authErr || authMsg}
+                      </div>
+                    )}
+
                     <button
                       onClick={() => setAuthMode("create")}
                       className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
