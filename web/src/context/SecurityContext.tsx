@@ -6,8 +6,6 @@ import init, {
     WasmVaultHandle,
     VaultPair
 } from '../pkg/richiesafe_wasm.js';
-// Import WASM binary URL for explicit path resolution (fixes GitHub Pages)
-import wasmUrl from '../pkg/richiesafe_wasm_bg.wasm?url';
 
 // NOTE: The WASM pkg should be in web/src/pkg/ - copied there during build.
 
@@ -66,8 +64,17 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     }, [isAuthenticated, vaultHandle]); // Re-bind if auth state changes
 
     useEffect(() => {
-        // Pass explicit WASM URL to fix path resolution on GitHub Pages
-        init(wasmUrl).then(() => {
+        // Dynamically determine WASM path based on current location
+        // This works on both local dev, Capacitor, and GitHub Pages
+        const getWasmPath = () => {
+            const base = import.meta.url;
+            // Navigate up from the bundled JS location to assets folder
+            const url = new URL('richiesafe_wasm_bg.wasm', base);
+            console.log('WASM URL:', url.href);
+            return url.href;
+        };
+
+        init(getWasmPath()).then(() => {
             setIsReady(true);
             console.log("WASM Initialized");
         }).catch(e => {
