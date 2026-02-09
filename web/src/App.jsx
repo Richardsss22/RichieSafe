@@ -969,6 +969,22 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
   const [editingId, setEditingId] = useState(null); // Track ID if editing
   const [newItem, setNewItem] = useState({ title: "", user: "", pass: "", type: "password", notes: "" });
 
+  // Sync Status State
+  const [syncStatus, setSyncStatus] = useState(navigator.onLine ? "online" : "offline");
+  const [lastSync, setLastSync] = useState(null);
+
+  // Sync Status Effect
+  useEffect(() => {
+    const handleOnline = () => setSyncStatus("online");
+    const handleOffline = () => setSyncStatus("offline");
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const revealTimerRef = useRef(null);
   const clipboardTimerRef = useRef(null);
 
