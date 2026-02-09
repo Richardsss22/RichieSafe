@@ -64,26 +64,34 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     }, [isAuthenticated, vaultHandle]); // Re-bind if auth state changes
 
     useEffect(() => {
-        // Determine WASM path based on deployment environment
-        const getWasmPath = () => {
-            // On GitHub Pages, use absolute path
-            if (window.location.hostname.includes('github.io')) {
-                return '/RichieSafe/assets/richiesafe_wasm_bg.wasm';
+        const loadWasm = async () => {
+            try {
+                let wasmSource: string | Response;
+
+                if (window.location.hostname.includes('github.io')) {
+                    // Force absolute URL with cache buster for GitHub Pages
+                    const url = `https://richardsss22.github.io/RichieSafe/assets/richiesafe_wasm_bg.wasm?t=${Date.now()}`;
+                    console.log('Fetching WASM from:', url);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
+                    }
+                    wasmSource = response;
+                } else {
+                    // Local dev / Capacitor
+                    wasmSource = 'richiesafe_wasm_bg.wasm';
+                }
+
+                await init(wasmSource);
+                setIsReady(true);
+                console.log("WASM Initialized successfully");
+            } catch (e) {
+                console.error("Failed to init WASM:", e);
+                setError(`Security module error: ${e instanceof Error ? e.message : String(e)}`);
             }
-            // For local dev / Capacitor, use relative path
-            return 'richiesafe_wasm_bg.wasm';
         };
 
-        const wasmPath = getWasmPath();
-        console.log('Loading WASM from:', wasmPath);
-
-        init(wasmPath).then(() => {
-            setIsReady(true);
-            console.log("WASM Initialized successfully");
-        }).catch(e => {
-            console.error("Failed to init WASM:", e);
-            setError("Security module failed to load. Please check connection or artifacts.");
-        });
+        loadWasm();
     }, []);
 
     const unlock = async (blob: Uint8Array, secret: string) => {
