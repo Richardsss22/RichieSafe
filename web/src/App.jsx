@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-// import { generate_mnemonic } from "./pkg/richiesafe_wasm";
+import { generate_mnemonic } from "./pkg/richiesafe_wasm";
 // import wasmUrl from "./pkg/richiesafe_wasm_bg.wasm?url"; 
 import { storage } from "./utils/storage";
 import { App as CapApp } from "@capacitor/app";
@@ -239,8 +239,8 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
     if (!isReady) return;
     try {
       if (generatedOnceRef.current && recovery) return;
-      // const phrase = generate_mnemonic(); // Still using direct import for util, or WASM export
-      const phrase = "recovery_phrase_placeholder"; // DEBUG: Temporary placeholder
+      const phrase = generate_mnemonic(); // Still using direct import for util, or WASM export
+      // const phrase = "recovery_phrase_placeholder"; // DEBUG: Temporary placeholder
       setRecovery(phrase);
       generatedOnceRef.current = true;
     } catch (e) {
