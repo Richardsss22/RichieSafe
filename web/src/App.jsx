@@ -1684,8 +1684,8 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
                 onClick={() => {
                   // Fetch data on-demand for editing
                   try {
-                    const passBytes = handle.get_entry_password(selectedItem.id);
-                    const noteBytes = handle.get_entry_notes(selectedItem.id);
+                    const passBytes = vaultHandle.get_entry_password(selectedItem.id);
+                    const noteBytes = vaultHandle.get_entry_notes(selectedItem.id);
                     const dec = new TextDecoder();
 
                     setNewItem({
