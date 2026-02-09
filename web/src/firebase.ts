@@ -12,16 +12,16 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "richiesafe-f1d07.firebaseapp.com",
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "richiesafe-f1d07",
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "richiesafe-f1d07.firebasestorage.app",
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 console.log("DEBUG: Config keys loaded:", {
     hasKey: !!firebaseConfig.apiKey,
     keyLen: firebaseConfig.apiKey?.length,
-    hasDomain: !!firebaseConfig.authDomain,
-    projectId: firebaseConfig.projectId,
+    domain: firebaseConfig.authDomain,
+    project: firebaseConfig.projectId,
     mode: import.meta.env.MODE
 });
 
