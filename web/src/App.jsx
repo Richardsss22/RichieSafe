@@ -583,8 +583,16 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       >
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
-        <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50">
-          v1.2 (Hardcoded+Nuke)
+        <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
+          <span>v1.3 (Standard+Reset)</span>
+          <button
+            onClick={() => {
+              if (confirm("Reset total da app?")) nukeFirebaseData();
+            }}
+            className="underline hover:text-red-500 cursor-pointer pointer-events-auto"
+          >
+            Reset App
+          </button>
         </div>
 
         {/* DEBUG: Firebase Status Banner */}
