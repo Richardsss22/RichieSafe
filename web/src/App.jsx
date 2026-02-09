@@ -184,7 +184,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const domain = "richiesafe-f1d07.firebaseapp.com";
+        const domain = "richiesafe-f1d07.web.app";
         // Check init.json (should always exist if hosting is active)
         const res = await fetch(`https://${domain}/__/firebase/init.json`);
         if (res.ok) {
@@ -617,7 +617,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
         {/* Version Marker for Debugging */}
         <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
-          <span>v1.6 (Warning Only)</span>
+          <span>v1.7 (Switch to web.app)</span>
           <button
             onClick={() => {
               if (confirm("Reset total da app?")) nukeFirebaseData();
