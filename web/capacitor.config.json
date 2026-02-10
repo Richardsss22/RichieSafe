@@ -2,6 +2,9 @@
   "appId": "com.richiesafe.app",
   "appName": "RichieSafe",
   "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
   "plugins": {
     "SplashScreen": {
       "backgroundColor": "#ffffff",

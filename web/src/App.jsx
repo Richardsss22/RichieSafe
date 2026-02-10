@@ -764,8 +764,10 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                       type="password"
                       value={pin}
                       onChange={(e) => setPin(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest text-slate-900 dark:text-white"
+                      className="w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors"
                       placeholder="••••••"
+                      autoComplete="new-password"
+                      inputMode="numeric"
                     />
                   </div>
 
@@ -775,7 +777,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                       type="password"
                       value={panicPin}
                       onChange={(e) => setPanicPin(e.target.value)}
-                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold tracking-widest text-red-600 dark:text-red-400"
+                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold tracking-widest text-red-600 dark:text-red-400 text-base"
                       placeholder="••••••"
                     />
                   </div>
@@ -788,7 +790,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                     <textarea
                       value={recovery}
                       onChange={(e) => setRecovery(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[100px] text-slate-900 dark:text-white"
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[100px] text-slate-900 dark:text-white text-base"
                       placeholder="Gera ou cola a tua frase..."
                     />
                     <p className="text-xs text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
@@ -1995,7 +1997,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
               {newItem.type === "card" && (
                 <>
                   <input
-                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     placeholder="Número do Cartão"
                     value={newItem.user}
@@ -2003,7 +2005,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
                   />
                   <div className="flex gap-2">
                     <input
-                      className={`flex-1 min-w-0 p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                      className={`flex-1 min-w-0 p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                         }`}
                       placeholder="CVV / PIN"
                       type="password"
@@ -2012,7 +2014,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
                       autoComplete="off"
                     />
                     <input
-                      className={`flex-1 min-w-0 p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                      className={`flex-1 min-w-0 p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                         }`}
                       placeholder="Validade (MM/AA)"
                       value={newItem.notes}
@@ -2026,7 +2028,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
               {newItem.type === "password" && (
                 <>
                   <input
-                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     placeholder="Utilizador / Email"
                     value={newItem.user}
@@ -2034,7 +2036,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
                     autoComplete="username"
                   />
                   <input
-                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     placeholder="Password"
                     type="password"
@@ -2048,7 +2050,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
               {newItem.type === "image" && (
                 <div className="space-y-3">
                   <input
-                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                    className={`w-full p-4 rounded-2xl border outline-none focus:ring-2 focus:ring-indigo-500 text-base transition-colors ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     placeholder="Nome do Ficheiro / Utilizador"
                     value={newItem.user}
