@@ -47,7 +47,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: web
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Frontend
         working-directory: web
@@ -115,7 +115,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: web
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Frontend
         working-directory: web
