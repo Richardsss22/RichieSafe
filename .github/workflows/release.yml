@@ -127,11 +127,6 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: npm run build
 
-      - name: Inject Google Client ID
-        working-directory: web
-        run: |
-          sed -i 's/REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com/${{ secrets.GOOGLE_CLIENT_ID }}/g' capacitor.config.json
-
       - name: Sync Capacitor
         working-directory: web
         run: npx cap sync android
