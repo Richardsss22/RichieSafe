@@ -1,17 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-// We import dynamically or rely on vite-plugin-wasm to handle the import if available
-// For now, we assume the pkg is available via alias or standard import if installed
+// Import from the copied pkg folder (copied by CI workflow or npm script)
 import init, {
     unlock_vault,
     create_vault_pair,
     WasmVaultHandle,
     VaultPair
-} from '../../../core/crates/richiesafe-wasm/pkg/richiesafe_wasm.js';
+} from '../pkg/richiesafe_wasm.js';
 
-// NOTE: The path above imports directly from the core crate source for now. 
-// In a real production build, this should be an NPM package or copied to src.
-// Since we don't have the artifact locally, this import WILL FAIL locally until the user places the artifact.
-// We will wrap it in a try-catch for init.
+// NOTE: The WASM pkg should be in web/src/pkg/ - copied there during build.
 
 interface SecurityContextType {
     isReady: boolean;
@@ -68,13 +64,34 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     }, [isAuthenticated, vaultHandle]); // Re-bind if auth state changes
 
     useEffect(() => {
-        init().then(() => {
-            setIsReady(true);
-            console.log("WASM Initialized");
-        }).catch(e => {
-            console.error("Failed to init WASM", e);
-            setError("Security module failed to load. Please check connection or artifacts.");
-        });
+        const loadWasm = async () => {
+            try {
+                let wasmSource: string | Response;
+
+                if (window.location.hostname.includes('github.io')) {
+                    // Force absolute URL with cache buster for GitHub Pages
+                    const url = `https://richardsss22.github.io/RichieSafe/assets/richiesafe_wasm_bg.wasm?t=${Date.now()}`;
+                    console.log('Fetching WASM from:', url);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
+                    }
+                    wasmSource = response;
+                } else {
+                    // Local dev / Capacitor
+                    wasmSource = 'richiesafe_wasm_bg.wasm';
+                }
+
+                await init(wasmSource);
+                setIsReady(true);
+                console.log("WASM Initialized successfully");
+            } catch (e) {
+                console.error("Failed to init WASM:", e);
+                setError(`Security module error: ${e instanceof Error ? e.message : String(e)}`);
+            }
+        };
+
+        loadWasm();
     }, []);
 
     const unlock = async (blob: Uint8Array, secret: string) => {

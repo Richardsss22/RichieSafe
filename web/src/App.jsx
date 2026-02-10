@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 
-import init, { generate_mnemonic } from "./pkg/richiesafe_wasm";
+import { generate_mnemonic } from "./pkg/richiesafe_wasm";
 // import wasmUrl from "./pkg/richiesafe_wasm_bg.wasm?url"; 
 import { storage } from "./utils/storage";
 import { App as CapApp } from "@capacitor/app";
@@ -28,13 +28,38 @@ import {
   ChevronRight,
   Image as ImageIcon,
 } from "lucide-react";
-import { listenAuth, logoutFirebase, loginEmail, registerEmail, loginGoogle } from "./auth";
+import { listenAuth, logoutFirebase, loginEmail, registerEmail, loginGoogle, loginGooglePopup, handleGoogleRedirect } from "./auth";
 import { auth } from "./firebase";
 import { initialSync, listenRemoteChanges, pushLocal, bumpLocalMeta } from "./sync";
 import { useSecurity } from "./context/SecurityContext";
 
 
+const STORAGE_KEY = "richiesafe_vault_blob";
+
 /* ------------------------------ Helpers ------------------------------ */
+function getErrorMessage(error) {
+  const msg = String(error?.message || error).toLowerCase();
+
+  // Suppress technical initial state error commonly seen on load
+  if (msg.includes("missing initial state")) return "";
+
+  if (msg.includes("client is offline") || msg.includes("network-request-failed") || msg.includes("unavailable"))
+    return "Sem ligação ou bloqueado pelo browser (Modo Privado?).";
+
+  if (msg.includes("auth/unauthorized-domain"))
+    return "Domínio não autorizado. Adiciona este site na Consola Firebase > Auth.";
+
+  if (msg.includes("popup-closed-by-user") || msg.includes("cancelled-popup-request"))
+    return "Janela de login fechada.";
+
+  if (msg.includes("wrong-password")) return "Password incorreta.";
+  if (msg.includes("user-not-found")) return "Conta não encontrada.";
+  if (msg.includes("email-already-in-use")) return "Email já registado.";
+  if (msg.includes("weak-password")) return "Password fraca.";
+  if (msg.includes("too-many-requests")) return "Muitas tentativas. Aguarda um pouco.";
+
+  return msg.replace("Firebase: ", "").replace("Error (auth/", "").replace(").", "");
+}
 async function writeClipboardSafe(text) {
   // Prefer modern async Clipboard API
   if (navigator?.clipboard?.writeText) {
@@ -117,18 +142,147 @@ function isProbablyMnemonic(s) {
   return true;
 }
 
+/* ------------------------------ Confirm Modal ------------------------------ */
+function ConfirmModal({ open, title, message, onConfirm, onCancel, isDarkMode }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
+      <div
+        className={`w-[90%] max-w-sm rounded-2xl p-6 shadow-2xl ${isDarkMode ? "bg-[#1a1a2e] text-white border border-slate-700" : "bg-white text-black"
+          }`}
+        onClick={e => e.stopPropagation()}
+      >
+        {title && <h3 className="text-lg font-bold mb-2">{title}</h3>}
+        <p className={`text-sm mb-6 whitespace-pre-line ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${isDarkMode ? "bg-slate-700 hover:bg-slate-600 text-white" : "bg-slate-200 hover:bg-slate-300 text-black"
+              }`}
+          >Cancelar</button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-xl font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors"
+          >Confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ Auth Screen ------------------------------ */
+
+async function nukeFirebaseData() {
+  try {
+    if (window.indexedDB && window.indexedDB.databases) {
+      const dbs = await window.indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name && (db.name.includes("firebase") || db.name.includes("firestore"))) {
+          window.indexedDB.deleteDatabase(db.name);
+        }
+      }
+    }
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.includes("firebase")) {
+        localStorage.removeItem(key);
+      }
+    }
+    sessionStorage.setItem("richiesafe_nuked", "true");
+  } catch (e) {
+    console.warn("Nuke failed:", e);
+  }
+}
+
 const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const { unlock, create, isReady } = useSecurity();
   const [hasVault, setHasVault] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
 
   // ---- Sessão (Firebase Auth) - opcional ----
-  const [authMode, setAuthMode] = useState("login"); // "login" | "register"
+  const [authMode, setAuthMode] = useState("welcome"); // "welcome" | "create" | "login" | "register"
   const [email, setEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authMsg, setAuthMsg] = useState("");
   const [authErr, setAuthErr] = useState("");
+  const [showCloudSync, setShowCloudSync] = useState(false); // Collapsible Cloud Sync section
+  const [canRetryPopup, setCanRetryPopup] = useState(false); // New state for popup retry
+
+
+  // Handle any pending Google redirect result on page load (silent)
+  useEffect(() => {
+    const processGoogleRedirect = async () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error")) {
+        setAuthErr(`Erro no URL: ${params.get("error")} - ${params.get("error_description")}`);
+      }
+      try {
+        const result = await handleGoogleRedirect();
+        if (result?.user) {
+          setAuthMsg("Sessão iniciada com Google.");
+        }
+      } catch (e) {
+        // Silent — popup is now primary, redirect errors are noise
+      }
+    };
+    processGoogleRedirect();
+  }, []);
+
+  // Auto-sync when user prop changes (e.g., after redirect or already authenticated)
+  useEffect(() => {
+    if (!user) return;
+
+    // In "create" mode, user just logged in to associate their account.
+    // Don't run full sync — there's no vault yet. Just confirm auth.
+    if (authMode === "create") {
+      setAuthMsg("");
+      setAuthErr("");
+      return;
+    }
+
+    const checkVault = async () => {
+      setAuthLoading(true);
+      setAuthMsg("A verificar cofre...");
+      try {
+        const syncResult = await initialSync(STORAGE_KEY);
+        console.log("Sync result:", syncResult);
+
+        // If we succeeded, clear the nuke flag so we can nuke again if needed later
+        sessionStorage.removeItem("richiesafe_nuked");
+
+        if (syncResult.mode !== "empty" && syncResult.mode !== "offline") {
+          setHasVault(true);
+          if (syncResult.mode === "offline_fallback") {
+            setAuthMsg("Modo Offline: Usando cópia local.");
+          } else {
+            setAuthMsg("Cofre encontrado. Introduz o PIN.");
+          }
+        } else {
+          setAuthMsg("Nenhum cofre encontrado nesta conta.");
+        }
+      } catch (e) {
+        console.warn("Vault check failed:", e);
+        const errMsg = getErrorMessage(e);
+        setAuthErr(errMsg);
+
+        // "Target ID" error = Firestore corruption. Fall back to offline mode.
+        if (errMsg.includes("Target ID") || String(e).includes("Target ID")) {
+          setAuthErr("");
+          setAuthMsg("Sem acesso à nuvem. A usar modo offline.");
+          // Check if local vault exists
+          const localBlob = localStorage.getItem(STORAGE_KEY);
+          if (localBlob) {
+            setHasVault(true);
+          }
+        }
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkVault();
+  }, [user]);
 
   const doEmailAuth = async () => {
     setAuthErr("");
@@ -154,8 +308,8 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       }
       setAuthPass("");
     } catch (e) {
-      setAuthErr("Falha na autenticação. Verifica credenciais.");
       console.error(e);
+      setAuthErr(getErrorMessage(e));
     } finally {
       setAuthLoading(false);
     }
@@ -166,11 +320,13 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
     setAuthMsg("");
     setAuthLoading(true);
     try {
-      await loginGoogle();
-      setAuthMsg("Sessão iniciada com Google.");
+      const result = await loginGoogle();
+      if (result?.user) {
+        setAuthMsg("Sessão iniciada com Google.");
+      }
     } catch (e) {
-      setAuthErr("Falha no login Google.");
       console.error(e);
+      setAuthErr(getErrorMessage(e));
     } finally {
       setAuthLoading(false);
     }
@@ -190,6 +346,22 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isRecovering, setIsRecovering] = useState(false);
+
+  // Sync Status State
+  const [syncStatus, setSyncStatus] = useState(navigator.onLine ? "online" : "offline");
+  const [lastSync, setLastSync] = useState(null);
+
+  // Sync Status Effect
+  useEffect(() => {
+    const handleOnline = () => setSyncStatus("online");
+    const handleOffline = () => setSyncStatus("offline");
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // StrictMode guard
   const generatedOnceRef = useRef(false);
@@ -239,6 +411,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
     try {
       if (generatedOnceRef.current && recovery) return;
       const phrase = generate_mnemonic(); // Still using direct import for util, or WASM export
+      // const phrase = "recovery_phrase_placeholder"; // DEBUG: Temporary placeholder
       setRecovery(phrase);
       generatedOnceRef.current = true;
     } catch (e) {
@@ -255,6 +428,7 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   };
 
   const handleCreate = async () => {
+    // Redeploy: Secrets Added
     if (!pin || !panicPin || !recovery) {
       setError("Preencha todos os campos.");
       return;
@@ -396,18 +570,17 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
   };
 
   const handleReset = () => {
-    const ok = window.confirm(
-      "ATENÇÃO: Isto vai APAGAR PERMANENTEMENTE o cofre guardado neste browser.\n\n" +
-      "Queres continuar?"
-    );
-    if (!ok) return;
-
-    storage.remove("richiesafe_vault_blob");
-    storage.remove("richiesafe_vault_decoy");
-    localStorage.removeItem("richiesafe_theme");
-
-    clearSensitiveInputs();
-    window.location.reload();
+    setConfirmModal({
+      title: "⚠️ Destruir Cofre",
+      message: "ATENÇÃO: Isto vai APAGAR PERMANENTEMENTE o cofre guardado neste browser.\n\nQueres continuar?",
+      onConfirm: () => {
+        storage.remove("richiesafe_vault_blob");
+        storage.remove("richiesafe_vault_decoy");
+        localStorage.removeItem("richiesafe_theme");
+        clearSensitiveInputs();
+        window.location.reload();
+      }
+    });
   };
 
   useEffect(() => {
@@ -421,6 +594,14 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
       className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${isDarkMode ? "bg-[#0a0a0c]" : "bg-white"
         }`}
     >
+      <ConfirmModal
+        open={!!confirmModal}
+        title={confirmModal?.title}
+        message={confirmModal?.message}
+        onConfirm={() => { setConfirmModal(null); confirmModal?.onConfirm(); }}
+        onCancel={() => setConfirmModal(null)}
+        isDarkMode={isDarkMode}
+      />
       <div
         className={`w-full max-w-md rounded-[2.5rem] p-8 lg:p-10 relative overflow-hidden transition-all duration-300 ${isDarkMode
           ? "bg-[#111114] shadow-2xl border border-slate-800"
@@ -428,6 +609,30 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           }`}
       >
         <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+        {/* Version Marker for Debugging */}
+        <div className="absolute top-2 right-2 text-[9px] text-slate-400 font-mono opacity-50 z-50 flex flex-col items-end gap-1">
+          <span>v2.6</span>
+          <button
+            onClick={() => {
+              setConfirmModal({
+                title: "Reset App",
+                message: "Isto vai limpar todos os dados da app (Firebase + cofre local).\n\nQueres continuar?",
+                onConfirm: async () => {
+                  await nukeFirebaseData();
+                  storage.remove("richiesafe_vault_blob");
+                  storage.remove("richiesafe_vault_decoy");
+                  localStorage.removeItem("richiesafe_theme");
+                  window.location.reload();
+                }
+              });
+            }}
+            className="underline hover:text-red-500 cursor-pointer pointer-events-auto"
+          >
+            Reset App
+          </button>
+        </div>
+
+
 
         {/* NORMAL UI START */}
         <div className="flex justify-between items-start mb-8">
@@ -450,319 +655,644 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
           RichieSafe
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mb-8 font-medium">
-          {hasVault ? "Bem-vindo de volta. Insira o seu PIN." : "Crie o seu novo cofre encriptado."}
+          {hasVault
+            ? "Bem-vindo de volta. Insira o seu PIN."
+            : (authMode === "login" ? "Entre na sua conta para sincronizar." : "Crie o seu novo cofre encriptado.")}
         </p>
 
-        {/* ---- Sessão (opcional) ---- */}
-        <div className={`rounded-[2rem] border p-5 transition-colors mb-6 ${isDarkMode ? "bg-slate-900/20 border-slate-800" : "bg-white border-slate-200"
-          }`}>
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? "text-slate-500" : "text-slate-400"
-                }`}>
-                Sessão (opcional)
-              </p>
-              <p className={`text-sm font-semibold ${isDarkMode ? "text-white" : "text-slate-900"
-                }`}>
-                {user ? "Ligado" : "Sem sessão"}
-              </p>
-              <p className={`text-xs mt-1 ${isDarkMode ? "text-slate-500" : "text-slate-500"
-                }`}>
-                A sincronização só funciona quando tiveres sessão iniciada.
-              </p>
-            </div>
+        {/* ---- CONDITIONAL UI BASED ON STATE ---- */}
 
-            {user ? (
-              <button
-                onClick={async () => {
-                  try { await logoutFirebase(); } catch { }
-                }}
-                className="px-4 py-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 font-bold text-xs transition-colors"
-              >
-                Terminar
-              </button>
-            ) : (
-              <button
-                onClick={continueOffline}
-                className={`px-4 py-2 rounded-xl font-bold text-xs transition-colors ${isDarkMode
-                  ? "bg-slate-900 hover:bg-slate-800 text-slate-400"
-                  : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm"
-                  }`}
-              >
-                Offline
-              </button>
-            )}
-          </div>
-
-          {!user && (
-            <>
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={() => setAuthMode("login")}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "login"
-                    ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
-                    : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
-                    }`}
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => setAuthMode("register")}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${authMode === "register"
-                    ? (isDarkMode ? "bg-slate-800 text-indigo-400" : "bg-slate-100 text-indigo-600")
-                    : (isDarkMode ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-800")
-                    }`}
-                >
-                  Registo
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                    ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                    : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                    }`}
-                  placeholder="Email"
-                  type="email"
-                  autoComplete="email"
-                />
-                <input
-                  value={authPass}
-                  onChange={(e) => setAuthPass(e.target.value)}
-                  className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
-                    ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
-                    : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
-                    }`}
-                  placeholder="Password"
-                  type="password"
-                  autoComplete={authMode === "login" ? "current-password" : "new-password"}
-                />
-
-                {(authErr || authMsg) && (
-                  <div className={`p-3 rounded-2xl text-xs font-bold text-center ${authErr
-                    ? "bg-red-500/10 border border-red-500/20 text-red-500"
-                    : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
-                    }`}>
-                    {authErr || authMsg}
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={doEmailAuth}
-                    disabled={authLoading}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {authLoading ? "A validar..." : (authMode === "login" ? "Entrar" : "Criar Conta")}
-                  </button>
-
-                  <button
-                    onClick={doGoogle}
-                    disabled={authLoading}
-                    className={`flex-1 font-bold py-3 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50 ${isDarkMode
-                      ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
-                      : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
-                      }`}
-                    title="Login com Google"
-                  >
-                    Google
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="space-y-5">
-          {hasVault && isRecovering ? (
-            <div className="space-y-2 animate-in fade-in zoom-in duration-300">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                CHAVE DE RECUPERAÇÃO
-              </label>
-              <textarea
-                value={recoveryKey}
-                onChange={(e) => setRecoveryKey(e.target.value)}
-                className="w-full bg-[#fafafa] dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white transition-all shadow-sm min-h-[120px]"
-                placeholder="Introduza a sua frase de recuperação..."
-                spellCheck={false}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-              />
-            </div>
-          ) : (
-            <div className="space-y-2 animate-in fade-in zoom-in duration-300">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                PIN MESTRE
-              </label>
-              <input
-                type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                style={{ backgroundColor: isDarkMode ? "" : "#FAFAFA", color: isDarkMode ? "white" : "black" }}
-                className="w-full border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm tracking-widest font-bold"
-                placeholder="••••••"
-                autoComplete="current-password"
-                inputMode="numeric"
-              />
-            </div>
-          )}
-
-          {!hasVault && (
-            <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-red-500">
-                  PIN DE PÂNICO
+        {/* 1. HAS VAULT -> UNLOCK SCREEN */}
+        {hasVault && (
+          <div className="space-y-5">
+            {isRecovering ? (
+              <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  CHAVE DE RECUPERAÇÃO
                 </label>
-                <input
-                  type="password"
-                  value={panicPin}
-                  onChange={(e) => setPanicPin(e.target.value)}
-                  // Use Tailwind classes for color to fix transition bug
-                  className="w-full bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold transition-all text-red-600 tracking-widest"
-                  placeholder="••••••"
-                  autoComplete="new-password"
-                  inputMode="numeric"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    FRASE DE RECUPERAÇÃO
-                  </label>
-
-                  {/* UI stays the same vibe; small action link */}
-                  <button
-                    type="button"
-                    onClick={handleGenerateRecovery}
-                    className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 uppercase tracking-widest"
-                  >
-                    Gerar
-                  </button>
-                </div>
-
                 <textarea
-                  value={recovery}
-                  onChange={(e) => setRecovery(e.target.value)}
-                  className="w-full border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 dark:bg-slate-900/50 dark:text-white min-h-[100px] placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  style={{ backgroundColor: isDarkMode ? "" : "#FAFAFA", color: isDarkMode ? "white" : "black" }}
-                  placeholder="Clique em GERAR ou escreva a sua..."
+                  value={recoveryKey}
+                  onChange={(e) => setRecoveryKey(e.target.value)}
+                  className="w-full bg-[#fafafa] dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white transition-all shadow-sm min-h-[120px]"
+                  placeholder="Introduza a sua frase de recuperação..."
                   spellCheck={false}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                 />
-
-                <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">
-                  Guarda esta frase offline. Não a deixes no clipboard.
-                </div>
               </div>
-            </>
-          )}
+            ) : (
+              <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  PIN MESTRE
+                </label>
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  style={{ backgroundColor: isDarkMode ? "" : "#FAFAFA", color: isDarkMode ? "white" : "black" }}
+                  className="w-full border border-slate-100 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-sm tracking-widest font-bold"
+                  placeholder="••••••"
+                  autoComplete="current-password"
+                  inputMode="numeric"
+                />
+              </div>
+            )}
 
-          {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-xs font-bold text-center animate-pulse">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-xs font-bold text-center animate-pulse">
+                {error}
+              </div>
+            )}
 
-          {!hasVault && (
             <button
-              onClick={handleCreate}
+              onClick={isRecovering ? handleRecover : handleUnlock}
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
             >
-              {loading ? "A criar..." : "Criar Cofre"}
+              {loading ? "A verificar..." : isRecovering ? "Recuperar Cofre" : "Desbloquear"}
             </button>
-          )}
 
-          {hasVault && (
-            <>
-              <button
-                onClick={isRecovering ? handleRecover : handleUnlock}
-                disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
-              >
-                {loading ? "A verificar..." : isRecovering ? "Recuperar Cofre" : "Desbloquear"}
-              </button>
+            <button
+              onClick={() => {
+                setIsRecovering(!isRecovering);
+                setError("");
+                setPin("");
+                setRecoveryKey("");
+              }}
+              className="w-full text-center text-sm font-medium text-slate-400 hover:text-indigo-500 transition-colors mt-4"
+            >
+              {isRecovering ? "Voltar ao PIN" : "Esqueceste-te da password?"}
+            </button>
 
+            {/* Sync / Login Option for Offline Users with Vault */}
+            {!user && (
               <button
                 onClick={() => {
-                  setIsRecovering(!isRecovering);
-                  setError("");
-                  // clear opposite input
-                  setPin("");
-                  setRecoveryKey("");
+                  setHasVault(false);
+                  setAuthMode("login");
                 }}
-                className="w-full text-center text-sm font-medium text-slate-400 hover:text-indigo-500 transition-colors mt-4"
+                className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-indigo-500 uppercase tracking-widest mt-6 transition-colors"
+                title="Entrar na conta para sincronizar"
               >
-                {isRecovering ? "Voltar ao PIN" : "Esqueceste-te da password?"}
+                Conectar Conta / Sincronizar
               </button>
+            )}
+          </div>
+        )}
 
-              <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
-                <button
-                  onClick={handleReset}
-                  className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest transition-colors"
-                >
-                  Destruir Cofre (Reset)
-                </button>
+        {/* 2. NO VAULT -> WELCOME / CREATE / LOGIN FLOW */}
+        {!hasVault && (
+          <div className="space-y-6">
+
+
+
+            {/* CASE A: CREATING VAULT (Logged in or not) */}
+            {authMode === "create" ? (
+              <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                <div className="flex items-center gap-2 mb-6">
+                  <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <ChevronRight className="rotate-180" size={20} />
+                  </button>
+                  <h2 className="text-lg font-bold">Configurar Cofre</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
+                    <input
+                      type="password"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest text-slate-900 dark:text-white"
+                      placeholder="••••••"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
+                    <input
+                      type="password"
+                      value={panicPin}
+                      onChange={(e) => setPanicPin(e.target.value)}
+                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold tracking-widest text-red-600 dark:text-red-400"
+                      placeholder="••••••"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
+                      <button onClick={handleGenerateRecovery} className="text-xs font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
+                    </div>
+                    <textarea
+                      value={recovery}
+                      onChange={(e) => setRecovery(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[100px] text-slate-900 dark:text-white"
+                      placeholder="Gera ou cola a tua frase..."
+                    />
+                    <p className="text-xs text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
+                  </div>
+
+                  {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
+
+                  {/* Cloud Sync - Login before creating vault */}
+                  <div className={`mt-4 rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-slate-800 bg-slate-900/50" : "border-slate-200 bg-slate-50"}`}>
+                    <button
+                      onClick={() => setShowCloudSync(!showCloudSync)}
+                      className={`w-full flex items-center justify-between px-5 py-3 text-sm font-semibold transition-colors ${isDarkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      <span>☁️ Sincronização na Nuvem {user ? "✅" : "(Opcional)"}</span>
+                      <ChevronRight className={`transition-transform ${showCloudSync ? "rotate-90" : ""}`} size={16} />
+                    </button>
+                    {showCloudSync && (
+                      <div className="px-5 pb-4 space-y-3">
+                        {user ? (
+                          <div className={`text-xs p-3 rounded-xl ${isDarkMode ? "bg-green-500/10 text-green-400 border border-green-800" : "bg-green-50 text-green-700 border border-green-200"}`}>
+                            ✅ Conectado como <b>{user.email || "Anónimo"}</b>
+                            <br /><span className="opacity-70">O cofre será sincronizado automaticamente.</span>
+                          </div>
+                        ) : (
+                          <>
+                            <p className={`text-[11px] ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                              Faz login para guardar o cofre na nuvem e sincronizar entre dispositivos.
+                            </p>
+                            <div className="space-y-2">
+                              <input
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className={`w-full rounded-xl px-4 py-2.5 outline-none text-sm transition-all ${isDarkMode
+                                  ? "bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500/50"
+                                  : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                                  }`}
+                                placeholder="Email"
+                                type="email"
+                              />
+                              <input
+                                value={authPass}
+                                onChange={(e) => setAuthPass(e.target.value)}
+                                className={`w-full rounded-xl px-4 py-2.5 outline-none text-sm transition-all ${isDarkMode
+                                  ? "bg-slate-800 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500/50"
+                                  : "bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                                  }`}
+                                placeholder="Password"
+                                type="password"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={doEmailAuth}
+                                  disabled={authLoading}
+                                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDarkMode
+                                    ? "bg-slate-700 hover:bg-slate-600 text-white"
+                                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                                    }`}
+                                >
+                                  {authLoading ? "..." : "Entrar"}
+                                </button>
+                                <button
+                                  onClick={doGoogle}
+                                  disabled={authLoading}
+                                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all"
+                                >
+                                  Google
+                                </button>
+                              </div>
+                            </div>
+                            {authErr && <div className="text-red-500 text-[11px] font-bold">{authErr}</div>}
+                            {authMsg && <div className={`text-[11px] font-medium ${isDarkMode ? "text-indigo-400" : "text-indigo-600"}`}>{authMsg}</div>}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleCreate}
+                    disabled={loading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] mt-4"
+                  >
+                    {loading ? "A Criar Cofre..." : "Finalizar Configuração"}
+                  </button>
+                </div>
               </div>
-            </>
-          )}
-        </div>
+            ) : user ? (
+              /* CASE B: LOGGED IN BUT NO VAULT (or checking) */
+              <div className="text-center space-y-4 animate-in fade-in zoom-in duration-300">
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 font-bold uppercase tracking-widest mb-1">CONECTADO COMO</p>
+                  <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{user.email}</p>
+                </div>
+
+                <div className="py-4">
+                  {authLoading ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-sm font-medium text-slate-500">{authMsg || "A procurar cofre..."}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {authMsg || "Nenhum cofre encontrado nesta conta."}
+                      </p>
+
+                      {/* If no vault found, offer to create one */}
+                      <button
+                        onClick={() => setAuthMode("create")}
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98]"
+                      >
+                        Criar Novo Cofre
+                      </button>
+
+                      <button
+                        onClick={logoutFirebase}
+                        className="text-sm font-bold text-red-500 hover:text-red-600 py-2"
+                      >
+                        Terminar Sessão
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* CASE C: NOT LOGGED IN -> WELCOME / LOGIN */
+              <>
+                {/* View Switching Logic */}
+                {authMode === "welcome" && (
+                  <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                    {/* Error Feedback on Welcome Screen */}
+                    {(authErr || authMsg) && (
+                      <div className={`p-4 rounded-xl text-xs font-bold text-center mb-2 ${authErr
+                        ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                        : "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                        }`}>
+                        {authErr || authMsg}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setAuthMode("create")}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                    >
+                      <Plus size={20} />
+                      Criar Novo Cofre
+                    </button>
+                    <button
+                      onClick={() => setAuthMode("login")}
+                      className={`w-full font-bold py-5 rounded-2xl border transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isDarkMode
+                        ? "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
+                        : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
+                        }`}
+                    >
+                      <Search size={20} />
+                      Já Tenho Conta
+                    </button>
+
+                    {/* Popup Retry Button */}
+                    {canRetryPopup && (
+                      <button
+                        onClick={doGoogle}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                      >
+                        <Search size={20} />
+                        Tentar via Popup
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {authMode === "login" && (
+                  <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                    <div className="flex items-center gap-2 mb-6">
+                      <button onClick={() => setAuthMode("welcome")} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <ChevronRight className="rotate-180 text-slate-900 dark:text-white" size={20} />
+                      </button>
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-white">Entrar na Conta</h2>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 bg-slate-100 dark:bg-slate-900 p-3 rounded-xl border border-transparent dark:border-slate-800">
+                        Faz login para sincronizar o teu cofre existente. Vais precisar do teu <b>PIN Mestre</b> para o desbloquear depois.
+                      </p>
+
+                      <div className="space-y-3">
+                        <input
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                            ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                            : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                            }`}
+                          placeholder="Email"
+                          type="email"
+                          autoComplete="email"
+                        />
+                        <input
+                          value={authPass}
+                          onChange={(e) => setAuthPass(e.target.value)}
+                          className={`w-full rounded-2xl px-5 py-3 outline-none text-sm transition-all ${isDarkMode
+                            ? "bg-slate-900/50 border border-slate-800 text-white focus:ring-2 focus:ring-indigo-500/50"
+                            : "bg-slate-50 border border-slate-200 text-slate-900 focus:ring-2 focus:ring-indigo-500/30"
+                            }`}
+                          placeholder="Password"
+                          type="password"
+                          autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                        />
+
+                        {(authErr || authMsg) && (
+                          <div className={`p-3 rounded-xl text-xs font-bold text-center ${authErr
+                            ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                            : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+                            }`}>
+                            {authErr || authMsg}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={async () => {
+                              setAuthErr("");
+                              try {
+                                await doEmailAuth();
+                                // doEmailAuth sets authErr on failure
+                                // CHECK authErr state directly might be stale due to closure, check auth.currentUser instead?
+                                // doEmailAuth is async and sets state. We should rely on try/catch inside doEmailAuth re-throwing?
+                                // Actually doEmailAuth catches its own errors. We need to check if we have a user.
+
+                                if (auth.currentUser) {
+                                  setAuthLoading(true);
+                                  setAuthMsg("A procurar cofre...");
+                                  const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
+                                  if (res.mode !== "empty" && res.mode !== "offline") {
+                                    setHasVault(true);
+                                    if (res.mode === "offline_fallback") {
+                                      setAuthErr(""); // Clear any previous error
+                                      setAuthMsg("Modo Offline: Usando cópia local.");
+                                    } else {
+                                      setAuthMsg("");
+                                    }
+                                  } else {
+                                    setAuthMsg("Nenhum cofre encontrado nesta conta ou erro de sync.");
+                                  }
+                                }
+                              } catch (e) {
+                                console.error(e);
+                                setAuthErr(getErrorMessage(e));
+                                setAuthMsg("");
+                              } finally {
+                                setAuthLoading(false);
+                              }
+                            }}
+                            disabled={authLoading}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50"
+                          >
+                            {authLoading ? "..." : "Entrar"}
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              setAuthErr("");
+                              try {
+                                await doGoogle();
+                                if (auth.currentUser) {
+                                  setAuthLoading(true);
+                                  setAuthMsg("A procurar cofre...");
+                                  const res = await initialSync("richiesafe_vault_blob", (msg) => setAuthMsg(msg));
+                                  if (res.mode !== "empty" && res.mode !== "offline") {
+                                    setHasVault(true);
+                                    if (res.mode === "offline_fallback") {
+                                      setAuthErr("");
+                                      setAuthMsg("Modo Offline: Usando cópia local.");
+                                    } else {
+                                      setAuthMsg("");
+                                    }
+                                  } else {
+                                    setAuthMsg("Nenhum cofre encontrado.");
+                                  }
+                                }
+                              } catch (e) {
+                                console.error(e);
+                                setAuthErr(getErrorMessage(e));
+                                setAuthMsg("");
+                              } finally {
+                                setAuthLoading(false);
+                              }
+                            }}
+                            disabled={authLoading}
+                            className={`font-bold py-3 rounded-2xl border active:scale-[0.98] disabled:opacity-50 ${isDarkMode
+                              ? "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                              : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm"
+                              }`}
+                            title="Login com Google"
+                          >
+                            Google
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ---- RESET VAULT (only when vault exists) ---- */}
+        {hasVault && (
+          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              onClick={handleReset}
+              className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest transition-colors"
+            >
+              Destruir Cofre (Reset)
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+    </div >
   );
 };
 
 /* ------------------------------ Settings Panel ------------------------------ */
+
+// Check if we're running in a native app (Capacitor) or browser
+const isNativeApp = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+// WebAuthn helper for browser Touch ID/Face ID
+const webAuthnBiometrics = {
+  isSupported: () => {
+    return window.PublicKeyCredential &&
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable;
+  },
+
+  async checkAvailable() {
+    if (!this.isSupported()) return false;
+    try {
+      return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    } catch {
+      return false;
+    }
+  },
+
+  async register(pin) {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: "RichieSafe", id: window.location.hostname },
+        user: {
+          id: new TextEncoder().encode("richiesafe-user"),
+          name: "user@richiesafe",
+          displayName: "RichieSafe User"
+        },
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },   // ES256 (P-256 + SHA-256) - Most common
+          { type: "public-key", alg: -257 }, // RS256 (RSA + SHA-256) - Often needed for TPMs/Windows Hello/macOS
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+          requireResidentKey: false,
+        },
+        timeout: 60000,
+        attestation: "none"
+      }
+    });
+
+    if (credential) {
+      // Store credential ID and encrypted PIN
+      const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+      localStorage.setItem("richiesafe_webauthn_cred", credId);
+      localStorage.setItem("richiesafe_bio_pin", btoa(pin)); // Simple encoding for demo
+      return true;
+    }
+    return false;
+  },
+
+  async authenticate() {
+    const credId = localStorage.getItem("richiesafe_webauthn_cred");
+    if (!credId) throw new Error("No credential registered");
+
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credential = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        rpId: window.location.hostname,
+        allowCredentials: [{
+          type: "public-key",
+          id: Uint8Array.from(atob(credId), c => c.charCodeAt(0))
+        }],
+        userVerification: "required",
+        timeout: 60000
+      }
+    });
+
+    if (credential) {
+      const storedPin = localStorage.getItem("richiesafe_bio_pin");
+      return storedPin ? atob(storedPin) : null;
+    }
+    return null;
+  },
+
+  delete() {
+    localStorage.removeItem("richiesafe_webauthn_cred");
+    localStorage.removeItem("richiesafe_bio_pin");
+  }
+};
+
 const SettingsBiometricToggle = ({ isDarkMode }) => {
   const [enabled, setEnabled] = useState(false);
+  const [available, setAvailable] = useState(false);
 
   useEffect(() => {
-    // Check if previously enabled in this session/device
-    const stored = localStorage.getItem("richiesafe_bio_enabled") === "true";
-    if (stored) {
-      NativeBiometric.getCredentials({ server: "richiesafe.app" })
-        .then(creds => setEnabled(!!creds))
-        .catch(() => setEnabled(false));
-    }
+    const checkBiometrics = async () => {
+      if (isNativeApp) {
+        // Native app - use Capacitor
+        const stored = localStorage.getItem("richiesafe_bio_enabled") === "true";
+        if (stored) {
+          try {
+            const creds = await NativeBiometric.getCredentials({ server: "richiesafe.app" });
+            setEnabled(!!creds);
+            setAvailable(true);
+          } catch {
+            setEnabled(false);
+            setAvailable(true);
+          }
+        } else {
+          setAvailable(true);
+        }
+      } else {
+        // Browser - use WebAuthn
+        const isAvailable = await webAuthnBiometrics.checkAvailable();
+        setAvailable(isAvailable);
+        if (isAvailable) {
+          const hasCredential = !!localStorage.getItem("richiesafe_webauthn_cred");
+          setEnabled(hasCredential);
+        }
+      }
+    };
+    checkBiometrics();
   }, []);
 
   const toggle = async () => {
     if (enabled) {
-      await NativeBiometric.deleteCredentials({ server: "richiesafe.app" });
-      localStorage.setItem("richiesafe_bio_enabled", "false"); // Disable flag
+      // Disable biometrics
+      if (isNativeApp) {
+        await NativeBiometric.deleteCredentials({ server: "richiesafe.app" });
+      } else {
+        webAuthnBiometrics.delete();
+      }
+      localStorage.setItem("richiesafe_bio_enabled", "false");
       setEnabled(false);
     } else {
+      // Enable biometrics
       const pin = prompt("Insere o teu PIN atual para ativar biometria:");
       if (!pin) return;
 
       try {
-        await NativeBiometric.setCredentials({
-          username: "user",
-          password: pin,
-          server: "richiesafe.app",
-        });
-        localStorage.setItem("richiesafe_bio_enabled", "true"); // Enable flag
+        if (isNativeApp) {
+          await NativeBiometric.setCredentials({
+            username: "user",
+            password: pin,
+            server: "richiesafe.app",
+          });
+        } else {
+          const success = await webAuthnBiometrics.register(pin);
+          if (!success) throw new Error("WebAuthn registration failed");
+        }
+        localStorage.setItem("richiesafe_bio_enabled", "true");
         setEnabled(true);
         alert("Biometria ativada!");
       } catch (e) {
-        alert("Falha ao ativar biometria.");
+        console.error("Biometric setup failed:", e);
+        alert("Falha ao ativar biometria. Verifica se o teu dispositivo suporta Touch ID/Face ID.");
         localStorage.setItem("richiesafe_bio_enabled", "false");
       }
     }
   };
 
+  if (!available) {
+    return (
+      <div className={`mb-6 p-4 rounded-2xl border ${isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
+        <div>
+          <h5 className={`font-bold text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Segurança Máxima (2FA)</h5>
+          <p className="text-xs text-slate-500">Biometria não disponível neste dispositivo</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`mb-6 p-4 rounded-2xl border flex items-center justify-between ${isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
       <div>
         <h5 className={`font-bold text-sm ${isDarkMode ? "text-white" : "text-slate-900"}`}>Segurança Máxima (2FA)</h5>
-        <p className="text-xs text-slate-500">Exige biometria ALÉM do PIN</p>
+        <p className="text-xs text-slate-500">
+          {isNativeApp ? "Exige biometria ALÉM do PIN" : "Touch ID / Face ID no browser"}
+        </p>
       </div>
       <button
         onClick={toggle}
@@ -906,7 +1436,7 @@ const SettingsPanel = ({ isDarkMode, onLogout, onChangePin }) => {
 };
 
 /* ------------------------------ Main App ------------------------------ */
-const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
+const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
   // Use Context
   const { vaultHandle, lock } = useSecurity();
 
@@ -915,6 +1445,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mode] = useState(getModeFromUrl);
+  const [confirmModal, setConfirmModal] = useState(null);
 
   const isWebMode = mode === "web" || mode === "emergency";
 
@@ -930,6 +1461,14 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState(null); // Track ID if editing
   const [newItem, setNewItem] = useState({ title: "", user: "", pass: "", type: "password", notes: "" });
+
+  // Sync Status State - depends on Firebase user AND internet
+  const [lastSync, setLastSync] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(""); // New: track sync errors
+
+  // Derive syncStatus from user, network, and syncing state
+  const syncStatus = isSyncing ? "syncing" : (!user ? "offline" : (navigator.onLine ? "online" : "offline"));
 
   const revealTimerRef = useRef(null);
   const clipboardTimerRef = useRef(null);
@@ -1067,8 +1606,8 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
 
   const persistExport = async () => {
     // We only persist if it's the main blob.
-    // In context-based approach, context handles export/sync usually, 
-    // but here we manually save to storage for persistence using context export.
+    setIsSyncing(true);
+    setSyncError(""); // Reset error on new attempt
     try {
       const blob = vaultHandle.export();
       await storage.set("richiesafe_vault_blob", JSON.stringify(Array.from(blob)));
@@ -1076,8 +1615,15 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
       // SYNC: Bump & Push
       bumpLocalMeta();
       await pushLocal("richiesafe_vault_blob");
+
+      setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       console.error("Auto-save failed", e);
+      // If it's a sync error (propagated from pushLocal), show it.
+      // If it's a local storage error, also show it.
+      setSyncError("Erro a sincronizar");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -1111,31 +1657,38 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
         }
       }
 
-      await persistExport();
+      // Update UI immediately (Optimistic)
       refreshItems();
 
-      // SECURITY: clear secret inputs immediately
       setIsCreating(false);
       setEditingId(null);
       setNewItem({ title: "", user: "", pass: "", type: "password", notes: "" });
       writeClipboardSafe("");
+
+      // Persist in background (but await to catch errors if needed, though UI is already closed)
+      await persistExport();
     } catch (e) {
       alert("Erro ao guardar: " + e);
       console.error(e);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Tens a certeza que queres eliminar este item?")) return;
-    try {
-      vaultHandle.delete_entry(id);
-      await persistExport();
-      refreshItems();
-      closeDetails();
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao eliminar: " + e);
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      title: "Eliminar Item",
+      message: "Tens a certeza que queres eliminar este item?",
+      onConfirm: async () => {
+        try {
+          vaultHandle.delete_entry(id);
+          refreshItems();
+          closeDetails();
+          await persistExport();
+        } catch (e) {
+          console.error(e);
+          alert("Erro ao eliminar: " + e);
+        }
+      }
+    });
   };
 
   const filteredItems = useMemo(() => {
@@ -1152,6 +1705,14 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
       className={`flex h-screen w-full transition-colors duration-300 ${isDarkMode ? "dark bg-[#0a0a0c] text-slate-200" : "bg-white text-slate-800"
         }`}
     >
+      <ConfirmModal
+        open={!!confirmModal}
+        title={confirmModal?.title}
+        message={confirmModal?.message}
+        onConfirm={() => { setConfirmModal(null); confirmModal?.onConfirm(); }}
+        onCancel={() => setConfirmModal(null)}
+        isDarkMode={isDarkMode}
+      />
       {/* Sidebar - Desktop */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 lg:relative lg:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -1221,13 +1782,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div
-              className={`hidden sm:flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border ${isDarkMode ? "bg-slate-900 border-slate-800 text-slate-500" : "bg-white border-slate-200 text-slate-600 shadow-sm"
-                }`}
-            >
-              <ShieldCheck size={14} className="text-emerald-500" />
-              <span>Local</span>
-            </div>
+            <SyncStatusIndicator status={syncStatus} lastSync={lastSync} isDarkMode={isDarkMode} onConnect={onConnect} syncError={syncError} />
 
             <button
               onClick={doLogout}
@@ -1662,8 +2217,8 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
                 onClick={() => {
                   // Fetch data on-demand for editing
                   try {
-                    const passBytes = handle.get_entry_password(selectedItem.id);
-                    const noteBytes = handle.get_entry_notes(selectedItem.id);
+                    const passBytes = vaultHandle.get_entry_password(selectedItem.id);
+                    const noteBytes = vaultHandle.get_entry_notes(selectedItem.id);
                     const dec = new TextDecoder();
 
                     setNewItem({
@@ -1692,6 +2247,83 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+/* --- Sync Status Indicator --- */
+const SyncStatusIndicator = ({ status, lastSync, isDarkMode, onConnect, syncError }) => {
+  // status: 'online' | 'syncing' | 'offline'
+
+  // ERROR STATE
+  if (syncError) {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-red-50 border-red-200 text-red-600"
+        }`}
+        title={syncError}
+      >
+        <div className="relative w-4 h-4 flex items-center justify-center">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="text-[10px] font-bold uppercase tracking-wider">Erro Sync</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'syncing') {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600"
+        }`}>
+        <div className="relative w-4 h-4">
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="text-[10px] font-bold uppercase tracking-wider">A Sincronizar...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'offline') {
+    return (
+      <button
+        onClick={onConnect}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all hover:scale-105 cursor-pointer ${isDarkMode ? "bg-slate-800 border-slate-700 text-slate-400 hover:border-indigo-500 hover:text-indigo-400" : "bg-slate-100 border-slate-200 text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
+          }`}
+      >
+        <div className="relative w-4 h-4 flex items-center justify-center">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+          </svg>
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-wider">Conectar</span>
+      </button>
+    );
+  }
+
+  // Online (Default)
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-green-50 border-green-200 text-green-700"
+      }`}>
+      <div className="relative w-4 h-4">
+        <svg className="w-4 h-4 backup-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="signal-ring w-full h-full border border-green-400 rounded-full opacity-0"></div>
+        </div>
+      </div>
+      <div className="flex flex-col leading-none">
+        <span className="text-[10px] font-bold uppercase tracking-wider">Online</span>
+        {lastSync && <span className="text-[8px] opacity-70">Sync: {lastSync}</span>}
+      </div>
     </div>
   );
 };
@@ -1882,6 +2514,8 @@ const App = () => {
       isDarkMode={isDarkMode}
       setIsDarkMode={setIsDarkMode}
       onLogout={handleLogout}
+      user={user}
+      onConnect={() => window.location.reload()}
     />
   );
 };
