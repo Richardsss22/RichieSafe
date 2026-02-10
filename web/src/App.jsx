@@ -724,6 +724,20 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
             >
               {isRecovering ? "Voltar ao PIN" : "Esqueceste-te da password?"}
             </button>
+
+            {/* Sync / Login Option for Offline Users with Vault */}
+            {!user && (
+              <button
+                onClick={() => {
+                  setHasVault(false);
+                  setAuthMode("login");
+                }}
+                className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-indigo-500 uppercase tracking-widest mt-6 transition-colors"
+                title="Entrar na conta para sincronizar"
+              >
+                Conectar Conta / Sincronizar
+              </button>
+            )}
           </div>
         )}
 
