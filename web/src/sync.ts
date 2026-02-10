@@ -42,12 +42,12 @@ async function downloadRemote(uid: string): Promise<{ blob: Uint8Array; updatedA
     const snap = await getDoc(metaRef);
     if (!snap.exists()) return null;
 
-    const data: any = snap.data();
-    if (!data.storagePath) return null;
+    const data = snap.data() as { storagePath: string; updatedAtMs: number } | undefined;
+    if (!data?.storagePath) return null;
 
     // Add explicit timeout to download
     const bytes = await withTimeout(getBytes(ref(storage, data.storagePath), 10 * 1024 * 1024), 10000); // 10s timeout
-    return { blob: new Uint8Array(bytes), updatedAt: data.updatedAtMs || 0 };
+    return { blob: new Uint8Array(bytes as ArrayBuffer), updatedAt: data.updatedAtMs || 0 };
 }
 
 async function uploadRemote(uid: string, blob: Uint8Array) {
@@ -88,6 +88,7 @@ export async function pushLocal(storageKey: string) {
         await withTimeout(uploadRemote(u.uid, blob), 5000);
     } catch (e) {
         console.warn("Sync push failed or timed out", e);
+        throw e; // Propagate error to UI
     }
 }
 
@@ -161,21 +162,25 @@ export function listenRemoteChanges(storageKey: string, onRemoteBlob: (blob: Uin
     const uid = u.uid;
     const metaRef = doc(db, "vaults", uid);
 
-    return onSnapshot(metaRef, async (snap) => {
-        if (!snap.exists()) return;
-        const data: any = snap.data();
-        const remoteUpdated = data.updatedAtMs || 0;
+    return onSnapshot(metaRef, async (snap: any) => {
+        try {
+            if (!snap.exists()) return;
+            const data: any = snap.data();
+            const remoteUpdated = data.updatedAtMs || 0;
 
-        const localMeta = getLocalMeta();
-        const localUpdated = localMeta.updatedAt || 0;
+            const localMeta = getLocalMeta();
+            const localUpdated = localMeta.updatedAt || 0;
 
-        // Só aplicamos se remoto for mais recente
-        if (remoteUpdated > localUpdated && data.storagePath) {
-            const bytes = await getBytes(ref(storage, data.storagePath), 10 * 1024 * 1024);
-            const blob = new Uint8Array(bytes);
-            setLocalBlob(storageKey, blob);
-            setLocalMeta({ ...localMeta, updatedAt: remoteUpdated });
-            onRemoteBlob(blob);
+            // Só aplicamos se remoto for mais recente
+            if (remoteUpdated > localUpdated && data.storagePath) {
+                const bytes = await getBytes(ref(storage, data.storagePath), 10 * 1024 * 1024);
+                const blob = new Uint8Array(bytes);
+                setLocalBlob(storageKey, blob);
+                setLocalMeta({ ...localMeta, updatedAt: remoteUpdated });
+                onRemoteBlob(blob);
+            }
+        } catch (e) {
+            console.error("Remote sync download failed", e);
         }
     });
 }

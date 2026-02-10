@@ -1465,6 +1465,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
   // Sync Status State - depends on Firebase user AND internet
   const [lastSync, setLastSync] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(""); // New: track sync errors
 
   // Derive syncStatus from user, network, and syncing state
   const syncStatus = isSyncing ? "syncing" : (!user ? "offline" : (navigator.onLine ? "online" : "offline"));
@@ -1606,6 +1607,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
   const persistExport = async () => {
     // We only persist if it's the main blob.
     setIsSyncing(true);
+    setSyncError(""); // Reset error on new attempt
     try {
       const blob = vaultHandle.export();
       await storage.set("richiesafe_vault_blob", JSON.stringify(Array.from(blob)));
@@ -1617,6 +1619,9 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
       setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       console.error("Auto-save failed", e);
+      // If it's a sync error (propagated from pushLocal), show it.
+      // If it's a local storage error, also show it.
+      setSyncError("Erro a sincronizar");
     } finally {
       setIsSyncing(false);
     }
@@ -1777,7 +1782,7 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <SyncStatusIndicator status={syncStatus} lastSync={lastSync} isDarkMode={isDarkMode} onConnect={onConnect} />
+            <SyncStatusIndicator status={syncStatus} lastSync={lastSync} isDarkMode={isDarkMode} onConnect={onConnect} syncError={syncError} />
 
             <button
               onClick={doLogout}
@@ -2247,8 +2252,27 @@ const MainApp = ({ isDarkMode, setIsDarkMode, onLogout, user, onConnect }) => {
 };
 
 /* --- Sync Status Indicator --- */
-const SyncStatusIndicator = ({ status, lastSync, isDarkMode, onConnect }) => {
+const SyncStatusIndicator = ({ status, lastSync, isDarkMode, onConnect, syncError }) => {
   // status: 'online' | 'syncing' | 'offline'
+
+  // ERROR STATE
+  if (syncError) {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isDarkMode ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-red-50 border-red-200 text-red-600"
+        }`}
+        title={syncError}
+      >
+        <div className="relative w-4 h-4 flex items-center justify-center">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="text-[10px] font-bold uppercase tracking-wider">Erro Sync</span>
+        </div>
+      </div>
+    );
+  }
 
   if (status === 'syncing') {
     return (
