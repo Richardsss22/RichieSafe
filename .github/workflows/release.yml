@@ -2,7 +2,8 @@ name: Release Desktop App
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -139,7 +140,7 @@ jobs:
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: app-v0.1.0 # Match the Tauri release tag pattern
+          # tag_name: app-v0.1.0 # Removed hardcoded tag, let action infer from current ref
           files: web/android/app/build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
