@@ -7,6 +7,9 @@ import init, {
     VaultPair
 } from '../pkg/richiesafe_wasm.js';
 
+// Import WASM file explicitly as URL to ensure it's included in build assets
+import wasmUrl from '../pkg/richiesafe_wasm_bg.wasm?url';
+
 // NOTE: The WASM pkg should be in web/src/pkg/ - copied there during build.
 
 interface SecurityContextType {
@@ -66,23 +69,8 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const loadWasm = async () => {
             try {
-                let wasmSource: string | Response;
-
-                if (window.location.hostname.includes('github.io')) {
-                    // Force absolute URL with cache buster for GitHub Pages
-                    const url = `https://richardsss22.github.io/RichieSafe/assets/richiesafe_wasm_bg.wasm?t=${Date.now()}`;
-                    console.log('Fetching WASM from:', url);
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
-                    }
-                    wasmSource = response;
-                } else {
-                    // Local dev / Capacitor
-                    wasmSource = 'richiesafe_wasm_bg.wasm';
-                }
-
-                await init(wasmSource);
+                // Initialize with the resolved URL from Vite
+                await init(wasmUrl);
                 setIsReady(true);
                 console.log("WASM Initialized successfully");
             } catch (e) {
