@@ -758,40 +758,40 @@ const AuthScreen = ({ isDarkMode, setIsDarkMode, user }) => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">PIN MESTRE</label>
                     <input
                       type="password"
                       value={pin}
                       onChange={(e) => setPin(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest"
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-widest text-slate-900 dark:text-white"
                       placeholder="••••••"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-red-500 uppercase tracking-widest ml-1">PIN DE PÂNICO</label>
                     <input
                       type="password"
                       value={panicPin}
                       onChange={(e) => setPanicPin(e.target.value)}
-                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold text-red-600 tracking-widest"
+                      className="w-full bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/30 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500/50 font-bold tracking-widest text-red-600 dark:text-red-400"
                       placeholder="••••••"
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex justify-between">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
-                      <button onClick={handleGenerateRecovery} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">FRASE DE RECUPERAÇÃO</label>
+                      <button onClick={handleGenerateRecovery} className="text-xs font-bold text-indigo-500 hover:text-indigo-400 uppercase">GERAR</button>
                     </div>
                     <textarea
                       value={recovery}
                       onChange={(e) => setRecovery(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[100px] text-slate-900 dark:text-white"
                       placeholder="Gera ou cola a tua frase..."
                     />
-                    <p className="text-[10px] text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
+                    <p className="text-xs text-slate-400">Guarda isto offline. É a única forma de recuperar o acesso.</p>
                   </div>
 
                   {error && <div className="text-red-500 text-xs font-bold text-center p-2">{error}</div>}
