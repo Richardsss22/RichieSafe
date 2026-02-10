@@ -1,7 +1,7 @@
 {
   "name": "web",
   "private": true,
-  "version": "1.1.9",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -42,5 +42,10 @@
     "vite": "^7.2.4",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0"
+  },
+  "overrides": {
+    "@codetrix-studio/capacitor-google-auth": {
+      "@capacitor/core": "$@capacitor/core"
+    }
   }
 }
