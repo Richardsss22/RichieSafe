@@ -14,6 +14,14 @@
             },
             "oauth_client": [
                 {
+                    "client_id": "435967577503-4u0gj6jai3chou3bbf605hdqerrrpamj.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "com.richiesafe.app",
+                        "certificate_hash": "006feeab39e2481df9b81eb0be95cd9bbafcd8dd"
+                    }
+                },
+                {
                     "client_id": "435967577503-29h8m77dnor114ceookrmbaoivurnm2c.apps.googleusercontent.com",
                     "client_type": 3
                 }
