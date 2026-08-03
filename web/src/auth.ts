@@ -75,5 +75,12 @@ export async function handleGoogleRedirect() {
 
 export async function logoutFirebase() {
     if (!auth) return;
+    if (Capacitor.isNativePlatform()) {
+        try {
+            await GoogleAuth.signOut();
+        } catch (e) {
+            console.warn("Google native signout failed", e);
+        }
+    }
     return signOut(auth);
 }

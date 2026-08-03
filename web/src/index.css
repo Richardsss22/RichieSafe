@@ -31,6 +31,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.mt-safe {
+  margin-top: env(safe-area-inset-top);
+}
+
 /* Force Light BG override for specific inputs */
 input.force-light-bg {
   background-color: #FAFAFA !important;

@@ -3,5 +3,6 @@
     <string name="app_name">RichieSafe</string>
     <string name="title_activity_main">RichieSafe</string>
     <string name="package_name">com.richiesafe.app</string>
-    <string name="custom_url_scheme">com.richiesafe.app</string>
+    <string name="custom_url_scheme">com.googleusercontent.apps.435967577503-g0ce42on3foj9c6rgri7dre561i55r1t</string>
+    <string name="server_client_id">435967577503-29h8m77dnor114ceookrmbaoivurnm2c.apps.googleusercontent.com</string>
 </resources>
