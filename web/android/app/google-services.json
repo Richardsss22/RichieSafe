@@ -1,47 +1,47 @@
 {
-    "project_info": {
-        "project_number": "435967577503",
-        "project_id": "richiesafe-f1d07",
-        "storage_bucket": "richiesafe-f1d07.firebasestorage.app"
-    },
-    "client": [
-        {
-            "client_info": {
-                "mobilesdk_app_id": "1:435967577503:android:f446ddf85354c1c49d41aa",
-                "android_client_info": {
-                    "package_name": "com.richiesafe.app"
-                }
-            },
-            "oauth_client": [
-                {
-                    "client_id": "435967577503-4u0gj6jai3chou3bbf605hdqerrrpamj.apps.googleusercontent.com",
-                    "client_type": 1,
-                    "android_info": {
-                        "package_name": "com.richiesafe.app",
-                        "certificate_hash": "006feeab39e2481df9b81eb0be95cd9bbafcd8dd"
-                    }
-                },
-                {
-                    "client_id": "435967577503-29h8m77dnor114ceookrmbaoivurnm2c.apps.googleusercontent.com",
-                    "client_type": 3
-                }
-            ],
-            "api_key": [
-                {
-                    "current_key": "AIzaSyAIObuBIN3U5i89mmvWimHI0HyV76L1jD8"
-                }
-            ],
-            "services": {
-                "appinvite_service": {
-                    "other_platform_oauth_client": [
-                        {
-                            "client_id": "435967577503-29h8m77dnor114ceookrmbaoivurnm2c.apps.googleusercontent.com",
-                            "client_type": 3
-                        }
-                    ]
-                }
-            }
+  "project_info": {
+    "project_number": "435967577503",
+    "project_id": "richiesafe-f1d07",
+    "storage_bucket": "richiesafe-f1d07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:435967577503:android:f446ddf85354c1c49d41aa",
+        "android_client_info": {
+          "package_name": "com.richiesafe.app"
         }
-    ],
-    "configuration_version": "1"
+      },
+      "oauth_client": [
+        {
+          "client_id": "435967577503-g0ce42on3foj9c6rgri7dre561i55r1t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.richiesafe.app",
+            "certificate_hash": "35b2c0016d92273af3c531a5bdfeb100524655d4"
+          }
+        },
+        {
+          "client_id": "435967577503-29h8m77dnor114ceookrmbaoivurnm2c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIObuBIN3U5i89mmvWimHI0HyV76L1jD8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "435967577503-29h8m77dnor114ceookrmbaoivurnm2c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }

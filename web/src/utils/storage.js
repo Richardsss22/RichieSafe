@@ -1,28 +1,20 @@
 
-import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
-import { Capacitor } from '@capacitor/core';
-
-// Helper to check if we are on a native platform
-const isNative = Capacitor.isNativePlatform();
+import { Preferences } from '@capacitor/preferences';
 
 export const storage = {
     /**
      * Get a value from storage.
-     * Uses SecureStorage on mobile (Keychain/Keystore) and localStorage on web.
+     * Uses Capacitor Preferences (SharedPreferences on Android, UserDefaults on iOS).
+     * This avoids Keystore/SecureStorage limitations and corruption issues with large blobs.
+     * The blob itself is already XChaCha20Poly1305 encrypted, so this is safe.
      */
     async get(key) {
-        if (isNative) {
-            try {
-                const { value } = await SecureStoragePlugin.get({ key });
-                return value;
-            } catch (error) {
-                // Key might not exist or other error
-                // console.warn("SecureStorage get error", error);
-                return null;
-            }
-        } else {
-            // Web fallback
-            return localStorage.getItem(key);
+        try {
+            const { value } = await Preferences.get({ key });
+            return value;
+        } catch (error) {
+            console.warn("Storage get error", error);
+            return null;
         }
     },
 
@@ -30,15 +22,11 @@ export const storage = {
      * Set a value in storage.
      */
     async set(key, value) {
-        if (isNative) {
-            try {
-                await SecureStoragePlugin.set({ key, value });
-            } catch (error) {
-                console.error("SecureStorage set error", error);
-                throw error;
-            }
-        } else {
-            localStorage.setItem(key, value);
+        try {
+            await Preferences.set({ key, value });
+        } catch (error) {
+            console.error("Storage set error", error);
+            throw error;
         }
     },
 
@@ -46,32 +34,21 @@ export const storage = {
      * Remove a value from storage.
      */
     async remove(key) {
-        if (isNative) {
-            try {
-                await SecureStoragePlugin.remove({ key });
-            } catch (error) {
-                // Ignore if key doesn't exist
-            }
-        } else {
-            localStorage.removeItem(key);
+        try {
+            await Preferences.remove({ key });
+        } catch (error) {
+            // Ignore if key doesn't exist
         }
     },
 
     /**
      * Clear all keys (use with caution)
-     * Note: Capacitor Secure Storage doesn't have a direct 'clear', 
-     * so we might need to track keys if we wanted full clear, 
-     * but for this app we mainly manage specific keys.
      */
     async clear() {
-        if (isNative) {
-            try {
-                await SecureStoragePlugin.clear();
-            } catch (e) {
-                console.error("SecureStorage clear error", e);
-            }
-        } else {
-            localStorage.clear();
+        try {
+            await Preferences.clear();
+        } catch (e) {
+            console.error("Storage clear error", e);
         }
     }
 };

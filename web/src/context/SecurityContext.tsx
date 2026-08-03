@@ -15,6 +15,8 @@ import wasmUrl from '../pkg/richiesafe_wasm_bg.wasm?url';
 interface SecurityContextType {
     isReady: boolean;
     isAuthenticated: boolean;
+    isBioAuthenticated: boolean;
+    setIsBioAuthenticated: (val: boolean) => void;
     vaultHandle: WasmVaultHandle | null;
     unlock: (blob: Uint8Array, secret: string) => Promise<void>;
     lock: () => void;
@@ -33,8 +35,23 @@ export function useSecurity() {
 export function SecurityProvider({ children }: { children: React.ReactNode }) {
     const [isReady, setIsReady] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isBioAuthenticated, setIsBioAuthenticated] = useState(false);
     const [vaultHandle, setVaultHandle] = useState<WasmVaultHandle | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Sync isBioAuthenticated with vault state and settings
+    useEffect(() => {
+        if (vaultHandle) {
+            const bioEnabled = localStorage.getItem("richiesafe_bio_enabled");
+            // If biometrics are explicitly disabled, we are "authenticated" by default
+            if (bioEnabled === "false") {
+                setIsBioAuthenticated(true);
+            }
+            // If bioEnabled is "true" or null (defaulting to enabled), we stay false until verifyBiometry is called
+        } else {
+            setIsBioAuthenticated(false);
+        }
+    }, [vaultHandle]);
 
     // Auto-Lock on Idle (5 minutes)
     useEffect(() => {
@@ -105,6 +122,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
         }
         setVaultHandle(null);
         setIsAuthenticated(false);
+        setIsBioAuthenticated(false); // MUST RESET
     };
 
     const create = async (pin: string, recovery: string, panicPin: string): Promise<VaultPair> => {
@@ -113,7 +131,17 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <SecurityContext.Provider value={{ isReady, isAuthenticated, vaultHandle, unlock, lock, create, error }}>
+        <SecurityContext.Provider value={{
+            isReady,
+            isAuthenticated,
+            isBioAuthenticated,
+            setIsBioAuthenticated,
+            vaultHandle,
+            unlock,
+            lock,
+            create,
+            error
+        }}>
             {children}
         </SecurityContext.Provider>
     );
